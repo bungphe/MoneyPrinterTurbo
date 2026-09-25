@@ -86,6 +86,22 @@ def concat_video_clips_with_ffmpeg(
             absolute_path = os.path.abspath(clip_file)
             fp.write(f"file '{_escape_ffmpeg_concat_path(absolute_path)}'\n")
 
+    # 所有中间片段编码参数一致，优先直接复制流拼接（几乎瞬间完成且无损），
+    # 失败时再回退到重新编码。
+    copy_command = [
+        get_ffmpeg_binary(),
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        concat_list_file,
+        "-c",
+        "copy",
+        output_file,
+    ]
+
     command = [
         get_ffmpeg_binary(),
         "-y",
@@ -105,6 +121,16 @@ def concat_video_clips_with_ffmpeg(
     ]
 
     try:
+        copy_result = subprocess.run(
+            copy_command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if copy_result.returncode == 0:
+            return
+        logger.warning("ffmpeg stream copy concat failed, fallback to re-encoding")
+
         # 使用 ffmpeg 只做一次串联与编码，避免 MoviePy 逐段合并时反复重编码，
         # 从而降低画质劣化与颜色偏移风险。
         result = subprocess.run(
@@ -332,7 +358,19 @@ def combine_videos(
                 
             # wirte clip to temp file
             clip_file = f"{output_dir}/temp-clip-{i+1}.mp4"
-            clip.write_videofile(clip_file, logger=None, fps=fps, codec=video_codec)
+            # 中间片段只用于后续拼接，最终视频还会再编码一次：
+            # 使用 ultrafast + 高质量 CRF 大幅缩短编码时间，同时基本不损失画质；
+            # 原素材音轨最终会被配音替换，这里不写音频，保证各片段流格式一致以便无损拼接。
+            clip.write_videofile(
+                clip_file,
+                logger=None,
+                fps=fps,
+                codec=video_codec,
+                audio=False,
+                preset="ultrafast",
+                threads=threads,
+                ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p"],
+            )
 
             # Store clip duration before closing
             clip_duration_saved = clip.duration
