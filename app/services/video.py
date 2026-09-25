@@ -57,7 +57,19 @@ fps = 30
 
 def get_ffmpeg_binary():
     # 优先复用配置里显式指定的 ffmpeg，可避免不同环境下 PATH 不一致。
-    return os.environ.get("IMAGEIO_FFMPEG_EXE") or "ffmpeg"
+    configured_ffmpeg = os.environ.get("IMAGEIO_FFMPEG_EXE")
+    if configured_ffmpeg:
+        return configured_ffmpeg
+    if shutil.which("ffmpeg"):
+        return "ffmpeg"
+    # 系统未安装 ffmpeg 时，回退到 MoviePy 自带的 imageio-ffmpeg 二进制，
+    # 否则多片段视频在最后拼接时会失败。
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return "ffmpeg"
 
 
 def _escape_ffmpeg_concat_path(file_path: str) -> str:
