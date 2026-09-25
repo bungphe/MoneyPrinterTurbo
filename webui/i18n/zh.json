@@ -117,6 +117,16 @@
     "Pixabay API Key added successfully": "Pixabay API Key 添加成功",
     "Select Pixabay API Key to delete": "选择要删除的 Pixabay API Key",
     "Delete Selected Pixabay API Key": "删除选定的 Pixabay API Key",
-    "Pixabay API Key deleted successfully": "Pixabay API Key 删除成功"
+    "Pixabay API Key deleted successfully": "Pixabay API Key 删除成功",
+    "Pexels": "Pexels",
+    "Pixabay": "Pixabay",
+    "Secret Key": "Secret Key",
+    "Upload Local Files": "上传本地文件",
+    "Custom Position (% from top)": "自定义位置（距顶部的百分比）",
+    "Please enter a value between 0 and 100": "请输入 0 到 100 之间的数值",
+    "Please enter a valid number": "请输入有效的数字",
+    "Please Select a Valid Video Source": "请选择有效的视频来源",
+    "Pexels API Keys": "Pexels API Keys",
+    "Pixabay API Keys": "Pixabay API Keys"
   }
 }

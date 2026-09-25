@@ -231,6 +231,11 @@ api_key = ""
 
 [ui]
 # UI related settings
+# 界面语言 (UI language) / Ngôn ngữ giao diện
+# 可选值 (Available values): "zh", "en", "vi", "de", "pt", "ru", "tr"
+# Xóa dòng này để tự động dùng ngôn ngữ của hệ thống (Remove to follow the system locale)
+language = "vi"
+
 # 是否隐藏日志信息
 # Whether to hide logs in the UI
 hide_log = false

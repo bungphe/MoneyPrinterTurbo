@@ -88,7 +88,7 @@ with lang_col:
             selected_index = i
 
     selected_language = st.selectbox(
-        "Language / 语言",
+        "Language / 语言 / Ngôn ngữ",
         options=display_languages,
         index=selected_index,
         key="top_language_selector",
@@ -110,6 +110,86 @@ support_locales = [
     "th-TH",
     "tr-TR",
 ]
+
+# 越南语界面下的 LLM 配置说明（中文说明仅在 zh 界面显示）
+llm_tips_vi = {
+    "ollama": """
+            ##### Hướng dẫn cấu hình Ollama
+            - **API Key**: Điền tùy ý, ví dụ 123
+            - **Base Url**: Thường là http://localhost:11434/v1
+                - Nếu `MoneyPrinterTurbo` và `Ollama` **không chạy trên cùng một máy**, hãy điền địa chỉ IP của máy chạy `Ollama`
+                - Nếu `MoneyPrinterTurbo` được triển khai bằng `Docker`, nên điền `http://host.docker.internal:11434/v1`
+            - **Model Name**: Dùng lệnh `ollama list` để xem, ví dụ `qwen:7b`
+            """,
+    "openai": """
+            ##### Hướng dẫn cấu hình OpenAI
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://platform.openai.com/api-keys)
+            - **Base Url**: Để trống nếu dùng OpenAI chính thức; nếu dùng nhà cung cấp tương thích OpenAI (ví dụ OpenRouter), hãy điền địa chỉ API tương thích tương ứng
+            - **Model Name**: Điền mô hình mà tài khoản **có quyền sử dụng**; nếu dùng nhà cung cấp tương thích, hãy điền ID mô hình mà nền tảng đó hỗ trợ
+            """,
+    "moonshot": """
+            ##### Hướng dẫn cấu hình Moonshot
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://platform.moonshot.cn/console/api-keys)
+            - **Base Url**: Cố định là https://api.moonshot.cn/v1
+            - **Model Name**: Ví dụ moonshot-v1-8k, [xem danh sách mô hình](https://platform.moonshot.cn/docs/intro#%E6%A8%A1%E5%9E%8B%E5%88%97%E8%A1%A8)
+            """,
+    "oneapi": """
+            ##### Hướng dẫn cấu hình OneAPI
+            - **API Key**: Điền khóa OneAPI của bạn
+            - **Base Url**: Điền URL gốc của OneAPI
+            - **Model Name**: Điền tên mô hình bạn muốn dùng, ví dụ claude-3-5-sonnet-20240620
+            """,
+    "qwen": """
+            ##### Hướng dẫn cấu hình Qwen (Thông Nghĩa Thiên Vấn)
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://dashscope.console.aliyun.com/apiKey)
+            - **Base Url**: Để trống
+            - **Model Name**: Ví dụ qwen-max, [xem danh sách mô hình](https://help.aliyun.com/zh/dashscope/developer-reference/model-introduction#3ef6d0bcf91wy)
+            """,
+    "g4f": """
+            ##### Hướng dẫn cấu hình gpt4free
+            > [Dự án mã nguồn mở trên GitHub](https://github.com/xtekky/gpt4free), dùng miễn phí các mô hình GPT nhưng **kém ổn định**
+            - **API Key**: Điền tùy ý, ví dụ 123
+            - **Base Url**: Để trống
+            - **Model Name**: Ví dụ gpt-3.5-turbo, [xem danh sách mô hình](https://github.com/xtekky/gpt4free/blob/main/g4f/models.py#L308)
+            """,
+    "azure": """
+            ##### Hướng dẫn cấu hình Azure
+            > [Xem cách triển khai mô hình](https://learn.microsoft.com/vi-vn/azure/ai-services/openai/how-to/create-resource)
+            - **API Key**: [Nhấn để tạo trong Azure Portal](https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI)
+            - **Base Url**: Để trống
+            - **Model Name**: Điền tên deployment thực tế của bạn
+            """,
+    "gemini": """
+            ##### Hướng dẫn cấu hình Gemini
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://ai.google.dev/)
+            - **Base Url**: Để trống
+            - **Model Name**: Ví dụ gemini-1.0-pro
+            """,
+    "deepseek": """
+            ##### Hướng dẫn cấu hình DeepSeek
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://platform.deepseek.com/api_keys)
+            - **Base Url**: Cố định là https://api.deepseek.com
+            - **Model Name**: Cố định là deepseek-chat
+            """,
+    "modelscope": """
+            ##### Hướng dẫn cấu hình ModelScope
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://modelscope.cn/docs/model-service/API-Inference/intro)
+            - **Base Url**: Cố định là https://api-inference.modelscope.cn/v1/
+            - **Model Name**: Ví dụ Qwen/Qwen3-32B, [xem danh sách mô hình](https://modelscope.cn/models?filter=inference_type&page=1)
+            """,
+    "ernie": """
+            ##### Hướng dẫn cấu hình Baidu ERNIE (Văn Tâm Nhất Ngôn)
+            - **API Key**: [Nhấn để đăng ký trên trang chính thức](https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application)
+            - **Secret Key**: [Nhấn để đăng ký trên trang chính thức](https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application)
+            - **Base Url**: Điền **địa chỉ yêu cầu** (request URL), [xem tài liệu](https://cloud.baidu.com/doc/WENXINWORKSHOP/s/jlil56u11#%E8%AF%B7%E6%B1%82%E8%AF%B4%E6%98%8E)
+            """,
+    "pollinations": """
+            ##### Hướng dẫn cấu hình Pollinations AI
+            - **API Key**: Không bắt buộc - để trống để dùng truy cập công khai
+            - **Base Url**: Mặc định là https://text.pollinations.ai/openai
+            - **Model Name**: Dùng 'openai-fast' hoặc điền tên mô hình cụ thể
+            """,
+}
 
 
 def get_all_fonts():
@@ -416,6 +496,8 @@ if not config.app.get("hide_config", False):
                     "中国用户建议使用 **DeepSeek** 或 **Moonshot** 作为大模型提供商\n- 国内可直接访问，不需要VPN \n- 注册就送额度，基本够用"
                 )
                 st.info(tips)
+            elif config.ui["language"] == "vi" and llm_provider in llm_tips_vi:
+                st.info(llm_tips_vi[llm_provider])
 
             st_llm_api_key = st.text_input(
                 tr("API Key"), value=llm_api_key, type="password"
@@ -585,7 +667,7 @@ with middle_panel:
             # Streamlit 的文件类型校验对扩展名大小写敏感，这里同时放行大小写两种形式。
             local_file_types = ["mp4", "mov", "avi", "flv", "mkv", "jpg", "jpeg", "png"]
             uploaded_files = st.file_uploader(
-                "Upload Local Files",
+                tr("Upload Local Files"),
                 type=local_file_types + [file_type.upper() for file_type in local_file_types],
                 accept_multiple_files=True,
             )
@@ -876,7 +958,13 @@ with right_panel:
         st.write(tr("Subtitle Settings"))
         params.subtitle_enabled = st.checkbox(tr("Enable Subtitles"), value=True)
         font_names = get_all_fonts()
-        saved_font_name = config.ui.get("font_name", "MicrosoftYaHeiBold.ttc")
+        # 微软雅黑不含越南语声调字符，越南语界面默认使用支持越南语的字体
+        default_font_name = (
+            "UTM Kabel KT.ttf"
+            if st.session_state["ui_language"] == "vi"
+            else "MicrosoftYaHeiBold.ttc"
+        )
+        saved_font_name = config.ui.get("font_name", default_font_name)
         saved_font_name_index = 0
         if saved_font_name in font_names:
             saved_font_name_index = font_names.index(saved_font_name)
@@ -943,10 +1031,10 @@ with right_panel:
     with st.expander(tr("Click to show API Key management"), expanded=False):
         st.subheader(tr("Manage Pexels and Pixabay API Keys"))
 
-        col1, col2 = st.tabs(["Pexels API Keys", "Pixabay API Keys"])
+        col1, col2 = st.tabs([tr("Pexels API Keys"), tr("Pixabay API Keys")])
 
         with col1:
-            st.subheader("Pexels API Keys")
+            st.subheader(tr("Pexels API Keys"))
             if config.app["pexels_api_keys"]:
                 st.write(tr("Current Keys:"))
                 for key in config.app["pexels_api_keys"]:
@@ -975,7 +1063,7 @@ with right_panel:
                     st.success(tr("Pexels API Key deleted successfully"))
 
         with col2:
-            st.subheader("Pixabay API Keys")
+            st.subheader(tr("Pixabay API Keys"))
 
             if config.app["pixabay_api_keys"]:
                 st.write(tr("Current Keys:"))

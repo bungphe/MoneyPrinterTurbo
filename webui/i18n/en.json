@@ -117,6 +117,16 @@
     "Pixabay API Key added successfully": "Pixabay API Key added successfully",
     "Select Pixabay API Key to delete": "Select Pixabay API Key to delete",
     "Delete Selected Pixabay API Key": "Delete Selected Pixabay API Key",
-    "Pixabay API Key deleted successfully": "Pixabay API Key deleted successfully"
+    "Pixabay API Key deleted successfully": "Pixabay API Key deleted successfully",
+    "Pexels": "Pexels",
+    "Pixabay": "Pixabay",
+    "Secret Key": "Secret Key",
+    "Upload Local Files": "Upload Local Files",
+    "Custom Position (% from top)": "Custom Position (% from top)",
+    "Please enter a value between 0 and 100": "Please enter a value between 0 and 100",
+    "Please enter a valid number": "Please enter a valid number",
+    "Please Select a Valid Video Source": "Please Select a Valid Video Source",
+    "Pexels API Keys": "Pexels API Keys",
+    "Pixabay API Keys": "Pixabay API Keys"
   }
 }
