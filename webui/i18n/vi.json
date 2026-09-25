@@ -34,7 +34,7 @@
     "Video Ratio": "Tỷ Lệ Khung Hình Video",
     "Portrait": "Dọc 9:16",
     "Landscape": "Ngang 16:9",
-    "Clip Duration": "Thời Lượng Tối Đa Mỗi Đoạn Video (giây)",
+    "Clip Duration": "Thời Lượng Tối Đa Mỗi Đoạn Video (giây) (video dài nên chọn 10–30 để cảnh quay liền mạch hơn)",
     "Number of Videos Generated Simultaneously": "Số Video Tạo Cùng Lúc",
     "Audio Settings": "**Cài Đặt Âm Thanh**",
     "Speech Synthesis": "Giọng Đọc",
@@ -127,6 +127,7 @@
     "Please enter a valid number": "Vui lòng nhập một số hợp lệ",
     "Please Select a Valid Video Source": "Vui lòng chọn nguồn video hợp lệ",
     "Pexels API Keys": "Danh sách API Key Pexels",
-    "Pixabay API Keys": "Danh sách API Key Pixabay"
+    "Pixabay API Keys": "Danh sách API Key Pixabay",
+    "Script Paragraphs": "Số Đoạn Kịch Bản (quyết định độ dài video, 1 đoạn ≈ 30–60 giây)"
   }
 }

@@ -606,14 +606,32 @@ with left_panel:
         )
         params.video_language = video_languages[selected_index][1]
 
+        # 文案段落数决定视频长度（1 段约 30-60 秒）
+        paragraph_numbers = list(range(1, 11))
+        saved_paragraph_number = config.ui.get("paragraph_number", 1)
+        params.paragraph_number = st.selectbox(
+            tr("Script Paragraphs"),
+            options=paragraph_numbers,
+            index=paragraph_numbers.index(saved_paragraph_number)
+            if saved_paragraph_number in paragraph_numbers
+            else 0,
+        )
+        config.ui["paragraph_number"] = params.paragraph_number
+
         if st.button(
             tr("Generate Video Script and Keywords"), key="auto_generate_script"
         ):
             with st.spinner(tr("Generating Video Script and Keywords")):
                 script = llm.generate_script(
-                    video_subject=params.video_subject, language=params.video_language
+                    video_subject=params.video_subject,
+                    language=params.video_language,
+                    paragraph_number=params.paragraph_number,
                 )
-                terms = llm.generate_terms(params.video_subject, script)
+                terms = llm.generate_terms(
+                    params.video_subject,
+                    script,
+                    amount=llm.get_terms_amount(params.paragraph_number),
+                )
                 if "Error: " in script:
                     st.error(tr(script))
                 elif "Error: " in terms:
@@ -630,7 +648,11 @@ with left_panel:
                 st.stop()
 
             with st.spinner(tr("Generating Video Keywords")):
-                terms = llm.generate_terms(params.video_subject, params.video_script)
+                terms = llm.generate_terms(
+                    params.video_subject,
+                    params.video_script,
+                    amount=llm.get_terms_amount(params.paragraph_number),
+                )
                 if "Error: " in terms:
                     st.error(tr(terms))
                 else:
@@ -728,7 +750,9 @@ with middle_panel:
         params.video_aspect = VideoAspect(video_aspect_ratios[selected_index][1])
 
         params.video_clip_duration = st.selectbox(
-            tr("Clip Duration"), options=[2, 3, 4, 5, 6, 7, 8, 9, 10], index=1
+            tr("Clip Duration"),
+            options=[2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30],
+            index=1,
         )
         params.video_count = st.selectbox(
             tr("Number of Videos Generated Simultaneously"),

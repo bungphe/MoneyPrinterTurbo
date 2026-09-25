@@ -127,6 +127,7 @@
     "Please enter a valid number": "Please enter a valid number",
     "Please Select a Valid Video Source": "Please Select a Valid Video Source",
     "Pexels API Keys": "Pexels API Keys",
-    "Pixabay API Keys": "Pixabay API Keys"
+    "Pixabay API Keys": "Pixabay API Keys",
+    "Script Paragraphs": "Script Paragraphs (controls video length, 1 paragraph ≈ 30–60 seconds)"
   }
 }

@@ -127,6 +127,7 @@
     "Please enter a valid number": "请输入有效的数字",
     "Please Select a Valid Video Source": "请选择有效的视频来源",
     "Pexels API Keys": "Pexels API Keys",
-    "Pixabay API Keys": "Pixabay API Keys"
+    "Pixabay API Keys": "Pixabay API Keys",
+    "Script Paragraphs": "文案段落数（决定视频长度，1 段约 30-60 秒）"
   }
 }

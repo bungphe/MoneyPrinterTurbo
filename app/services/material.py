@@ -223,7 +223,9 @@ def download_videos(
     for search_term in search_terms:
         video_items = search_videos(
             search_term=search_term,
-            minimum_duration=max_clip_duration,
+            # 片段时长设置较长（如 15-30 秒）时，不要求素材本身同样长，
+            # 否则可用素材会大幅减少；较短素材在合成时会被完整保留。
+            minimum_duration=min(max_clip_duration, 10),
             video_aspect=video_aspect,
         )
         logger.info(f"found {len(video_items)} videos for '{search_term}'")

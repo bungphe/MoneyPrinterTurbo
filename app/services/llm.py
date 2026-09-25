@@ -457,6 +457,15 @@ Generate a script for a video, depending on the subject of the video.
     return final_script.strip()
 
 
+def get_terms_amount(paragraph_number: int = 1) -> int:
+    """
+    文案越长，视频越长，需要更多搜索关键词来获取足够多样的素材，避免画面重复。
+    1 段 -> 5 个关键词，每多 1 段增加 2 个，最多 15 个。
+    """
+    paragraph_number = max(1, int(paragraph_number or 1))
+    return min(5 + (paragraph_number - 1) * 2, 15)
+
+
 def generate_terms(video_subject: str, video_script: str, amount: int = 5) -> List[str]:
     prompt = f"""
 # Role: Video Search Terms Generator
