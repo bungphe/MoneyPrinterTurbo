@@ -451,8 +451,8 @@ def generate_video(
     font_path = ""
     if params.subtitle_enabled:
         if not params.font_name:
-            # 默认使用支持越南语声调字符的字体
-            params.font_name = "UTM Kabel KT.ttf"
+            # 默认使用支持越南语声调字符的字体（Liberation Serif，与 Times New Roman 字形度量兼容）
+            params.font_name = "LiberationSerif-Bold.ttf"
         font_path = os.path.join(utils.font_dir(), params.font_name)
         if os.name == "nt":
             font_path = font_path.replace("\\", "/")

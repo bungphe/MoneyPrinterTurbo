@@ -23,6 +23,8 @@ phụ đề và nhạc nền, rồi ghép lại thành một video ngắn chất
 
 > Giao diện Web hỗ trợ tiếng Việt: chọn **vi - Tiếng Việt** trong bộ chọn ngôn ngữ ở góc trên bên phải, hoặc đặt
 > `language = "vi"` trong mục `[ui]` của tệp `config.toml`.
+> Ở giao diện tiếng Việt, kịch bản, giọng đọc và phụ đề mặc định đều là tiếng Việt. Phông phụ đề mặc định là
+> `LiberationSerif-Bold.ttf` (kiểu chữ giống Times New Roman, dựa trên Tinos, giấy phép SIL OFL), hiển thị đủ dấu tiếng Việt.
 
 ### Giao diện API
 

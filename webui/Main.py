@@ -587,9 +587,16 @@ with left_panel:
         for code in support_locales:
             video_languages.append((code, code))
 
+        # 越南语界面默认生成越南语文案（配音与字幕也随之为越南语）
+        default_video_language_index = 0
+        if st.session_state["ui_language"] == "vi":
+            default_video_language_index = [v[1] for v in video_languages].index(
+                "vi-VN"
+            )
+
         selected_index = st.selectbox(
             tr("Script Language"),
-            index=0,
+            index=default_video_language_index,
             options=range(
                 len(video_languages)
             ),  # Use the index as the internal option value
@@ -958,9 +965,10 @@ with right_panel:
         st.write(tr("Subtitle Settings"))
         params.subtitle_enabled = st.checkbox(tr("Enable Subtitles"), value=True)
         font_names = get_all_fonts()
-        # 微软雅黑不含越南语声调字符，越南语界面默认使用支持越南语的字体
+        # 微软雅黑不含越南语声调字符，越南语界面默认使用 Liberation Serif
+        # （基于 Tinos，与 Times New Roman 字形度量兼容，且支持越南语）
         default_font_name = (
-            "UTM Kabel KT.ttf"
+            "LiberationSerif-Bold.ttf"
             if st.session_state["ui_language"] == "vi"
             else "MicrosoftYaHeiBold.ttc"
         )
