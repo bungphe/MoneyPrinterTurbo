@@ -51,6 +51,27 @@ phụ đề và nhạc nền, rồi ghép lại thành một video ngắn chất
 - [x] Nguồn tư liệu video có **độ phân giải cao** và **miễn phí bản quyền**, bạn cũng có thể dùng **tư liệu cục bộ** của riêng mình
 - [x] Hỗ trợ tích hợp nhiều mô hình như **OpenAI**, **Moonshot**, **Azure**, **gpt4free**, **one-api**, **Qwen**, **Google Gemini**, **Ollama**, **DeepSeek**, **MiniMax**, **ERNIE**, **Pollinations**, **ModelScope** và nhiều mô hình khác
 
+## Tạo video hàng loạt 📋
+
+Trên giao diện Web, mở mục **Tạo Hàng Loạt** (phía trên nút **Tạo Video**):
+
+1. Chỉnh các cài đặt video, giọng đọc, phụ đề… như khi tạo một video. Mọi video trong lô sẽ dùng chung các cài đặt này.
+2. Nhập mỗi dòng một chủ đề, **hoặc** tải lên file CSV (nhấn **Tải file CSV mẫu** để lấy mẫu):
+
+   | chu_de (bắt buộc) | kich_ban (tùy chọn) | tu_khoa (tùy chọn) |
+   |---|---|---|
+   | 5 mẹo tiết kiệm tiền mỗi tháng | | |
+   | Cà phê sữa đá Việt Nam | Cà phê sữa đá là thức uống quen thuộc… | vietnamese coffee, iced coffee |
+
+   Bỏ trống `kich_ban` / `tu_khoa` thì AI sẽ tự viết. Tên cột tiếng Anh (`subject`, `script`, `keywords`) cũng được chấp nhận.
+3. Nhấn **Bắt Đầu Tạo Hàng Loạt**. Chủ đề nào lỗi sẽ được bỏ qua, các chủ đề còn lại vẫn tiếp tục.
+4. Kết quả: mỗi video kèm **tiêu đề và hashtag** do AI gợi ý để đăng TikTok / Reels / Shorts, và file
+   `storage/tasks/batch-.../ket_qua.csv` (mở bằng Excel) liệt kê đường dẫn video, tiêu đề, hashtag, trạng thái.
+   File CSV được ghi lại sau mỗi video, nên nếu bị dừng giữa chừng vẫn giữ được các video đã xong.
+
+> Lưu ý: các nền tảng (YouTube, TikTok) không trả tiền cho nội dung sản xuất hàng loạt theo khuôn mẫu, ít giá trị.
+> Hãy kiểm tra lại nội dung, thêm góc nhìn riêng, và gắn nhãn nội dung do AI tạo theo quy định của từng nền tảng.
+
 ## Video minh họa 📺
 
 ### Dọc 9:16

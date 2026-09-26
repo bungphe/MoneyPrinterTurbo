@@ -22,7 +22,7 @@ from app.models.schema import (
     VideoParams,
     VideoTransitionMode,
 )
-from app.services import llm, voice
+from app.services import batch, llm, voice
 from app.services import task as tm
 from app.utils import utils
 
@@ -1124,30 +1124,17 @@ with right_panel:
                     config.save_config()
                     st.success(tr("Pixabay API Key deleted successfully"))
 
-start_button = st.button(tr("Generate Video"), use_container_width=True, type="primary")
-if start_button:
-    config.save_config()
-    task_id = str(uuid4())
-    if not params.video_subject and not params.video_script:
-        st.error(tr("Video Script and Subject Cannot Both Be Empty"))
-        scroll_to_bottom()
-        st.stop()
-
+def get_video_source_error():
     if params.video_source not in ["pexels", "pixabay", "local"]:
-        st.error(tr("Please Select a Valid Video Source"))
-        scroll_to_bottom()
-        st.stop()
-
+        return tr("Please Select a Valid Video Source")
     if params.video_source == "pexels" and not config.app.get("pexels_api_keys", ""):
-        st.error(tr("Please Enter the Pexels API Key"))
-        scroll_to_bottom()
-        st.stop()
-
+        return tr("Please Enter the Pexels API Key")
     if params.video_source == "pixabay" and not config.app.get("pixabay_api_keys", ""):
-        st.error(tr("Please Enter the Pixabay API Key"))
-        scroll_to_bottom()
-        st.stop()
+        return tr("Please Enter the Pixabay API Key")
+    return ""
 
+
+def prepare_local_materials():
     if uploaded_files:
         local_videos_dir = utils.storage_dir("local_videos", create=True)
         # 每次重新上传时都以本次选择的素材为准，避免旧素材不断重复追加。
@@ -1181,6 +1168,8 @@ if start_button:
             if m.url:
                 params.video_materials.append(m)
 
+
+def attach_log_panel():
     log_container = st.empty()
     log_records = []
 
@@ -1191,7 +1180,130 @@ if start_button:
             log_records.append(msg)
             st.code("\n".join(log_records))
 
-    logger.add(log_received)
+    return logger.add(log_received)
+
+
+# 批量生成：按主题列表依次生成多个视频，并生成发布用的标题和话题标签
+with st.expander(tr("Batch Generation"), expanded=False):
+    st.info(tr("Batch Generation Help"))
+    batch_text = st.text_area(
+        tr("Batch Subjects"),
+        height=160,
+        key="batch_subjects_input",
+    )
+    batch_csv = st.file_uploader(
+        tr("Batch CSV File"), type=["csv", "CSV"], key="batch_csv_input"
+    )
+    st.download_button(
+        tr("Download Sample CSV"),
+        data=batch.SAMPLE_CSV.encode("utf-8-sig"),
+        file_name="mau_tao_hang_loat.csv",
+        mime="text/csv",
+    )
+    batch_button = st.button(
+        tr("Start Batch Generation"), use_container_width=True, key="batch_start"
+    )
+
+if batch_button:
+    config.save_config()
+    try:
+        batch_items = batch.parse_batch_input(
+            text=batch_text,
+            csv_content=batch_csv.getvalue() if batch_csv else None,
+        )
+    except ValueError:
+        st.error(tr("Invalid Batch CSV"))
+        st.stop()
+
+    if not batch_items:
+        st.error(tr("Please Enter at Least One Subject"))
+        st.stop()
+
+    source_error = get_video_source_error()
+    if source_error:
+        st.error(source_error)
+        st.stop()
+
+    prepare_local_materials()
+
+    progress_bar = st.progress(0.0, text=f"{tr('Batch Progress')}: 0/{len(batch_items)}")
+    status_table = st.empty()
+    status_rows = [
+        {
+            tr("No."): i,
+            tr("Subject"): item.subject,
+            tr("Status"): tr("Waiting"),
+            tr("Post Title"): "",
+        }
+        for i, item in enumerate(batch_items, start=1)
+    ]
+    status_table.dataframe(status_rows, use_container_width=True, hide_index=True)
+
+    def on_batch_progress(done, total, item_result):
+        row = status_rows[item_result.index - 1]
+        row[tr("Status")] = (
+            tr("Success") if item_result.status == batch.STATUS_SUCCESS else tr("Failed")
+        )
+        row[tr("Post Title")] = item_result.title
+        if done < total:
+            status_rows[done][tr("Status")] = tr("Generating")
+        status_table.dataframe(status_rows, use_container_width=True, hide_index=True)
+        progress_bar.progress(done / total, text=f"{tr('Batch Progress')}: {done}/{total}")
+
+    status_rows[0][tr("Status")] = tr("Generating")
+    status_table.dataframe(status_rows, use_container_width=True, hide_index=True)
+    log_handler_id = attach_log_panel()
+    try:
+        batch_output = batch.run_batch(
+            items=batch_items, base_params=params, on_progress=on_batch_progress
+        )
+    finally:
+        logger.remove(log_handler_id)
+
+    batch_results = batch_output["results"]
+    success_count = sum(1 for r in batch_results if r.status == batch.STATUS_SUCCESS)
+    if success_count:
+        st.success(f"{tr('Batch Generation Completed')}: {success_count}/{len(batch_results)}")
+    else:
+        st.error(f"{tr('Batch Generation Completed')}: 0/{len(batch_results)}")
+
+    with open(batch_output["csv_file"], "rb") as fp:
+        st.download_button(
+            tr("Download Batch Results"),
+            data=fp.read(),
+            file_name=f"{batch_output['batch_id']}.csv",
+            mime="text/csv",
+        )
+
+    # 展示成功的视频，并附上可直接复制的发布文案（标题 + 话题标签）
+    video_cols = st.columns(3)
+    col_index = 0
+    for item_result in batch_results:
+        for video_file in item_result.videos:
+            with video_cols[col_index % 3]:
+                st.video(video_file)
+                st.code(f"{item_result.title}\n{' '.join(item_result.hashtags)}", language=None)
+            col_index += 1
+
+    open_task_folder(batch_output["batch_id"])
+
+start_button = st.button(tr("Generate Video"), use_container_width=True, type="primary")
+if start_button:
+    config.save_config()
+    task_id = str(uuid4())
+    if not params.video_subject and not params.video_script:
+        st.error(tr("Video Script and Subject Cannot Both Be Empty"))
+        scroll_to_bottom()
+        st.stop()
+
+    source_error = get_video_source_error()
+    if source_error:
+        st.error(source_error)
+        scroll_to_bottom()
+        st.stop()
+
+    prepare_local_materials()
+    attach_log_panel()
 
     st.toast(tr("Generating Video"))
     logger.info(tr("Start Generating Video"))

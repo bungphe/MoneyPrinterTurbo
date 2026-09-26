@@ -128,6 +128,25 @@
     "Please Select a Valid Video Source": "请选择有效的视频来源",
     "Pexels API Keys": "Pexels API Keys",
     "Pixabay API Keys": "Pixabay API Keys",
-    "Script Paragraphs": "文案段落数（决定视频长度，1 段约 30-60 秒）"
+    "Script Paragraphs": "文案段落数（决定视频长度，1 段约 30-60 秒）",
+    "Batch Generation": "**批量生成**（:blue[点击展开]）",
+    "Batch Generation Help": "每行输入一个主题，或上传 CSV 文件（必填列：`主题`/`subject`；可选列：`文案`、`关键词`）。每个主题将按上方当前设置生成视频，并附带建议的发布标题和话题标签。失败的主题会被跳过，其余继续生成。结果保存为 CSV 文件（可用 Excel 打开）。",
+    "Batch Subjects": "主题列表（每行一个）",
+    "Batch CSV File": "或上传 CSV 文件",
+    "Download Sample CSV": "下载 CSV 模板",
+    "Start Batch Generation": "开始批量生成",
+    "Invalid Batch CSV": "CSV 文件无效：必须包含 `主题` 或 `subject` 列",
+    "Please Enter at Least One Subject": "请至少输入一个主题",
+    "Batch Progress": "进度",
+    "Batch Generation Completed": "批量生成完成，成功",
+    "Download Batch Results": "下载结果（CSV）",
+    "No.": "序号",
+    "Subject": "主题",
+    "Status": "状态",
+    "Post Title": "发布标题",
+    "Waiting": "等待中",
+    "Generating": "生成中...",
+    "Success": "成功",
+    "Failed": "失败"
   }
 }

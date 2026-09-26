@@ -128,6 +128,25 @@
     "Please Select a Valid Video Source": "Please Select a Valid Video Source",
     "Pexels API Keys": "Pexels API Keys",
     "Pixabay API Keys": "Pixabay API Keys",
-    "Script Paragraphs": "Script Paragraphs (controls video length, 1 paragraph ≈ 30–60 seconds)"
+    "Script Paragraphs": "Script Paragraphs (controls video length, 1 paragraph ≈ 30–60 seconds)",
+    "Batch Generation": "**Batch Generation** (:blue[Click to expand])",
+    "Batch Generation Help": "Enter one subject per line, or upload a CSV file (required column: `subject`; optional: `script`, `keywords`). Each subject becomes a video using the current settings above, with a suggested post title and hashtags. Failed subjects are skipped and the rest continue. Results are saved as a CSV file (opens in Excel).",
+    "Batch Subjects": "Subjects (one per line)",
+    "Batch CSV File": "Or upload a CSV file",
+    "Download Sample CSV": "Download sample CSV",
+    "Start Batch Generation": "Start Batch Generation",
+    "Invalid Batch CSV": "Invalid CSV file: a `subject` column is required",
+    "Please Enter at Least One Subject": "Please enter at least one subject",
+    "Batch Progress": "Progress",
+    "Batch Generation Completed": "Batch generation finished, succeeded",
+    "Download Batch Results": "Download results (CSV)",
+    "No.": "No.",
+    "Subject": "Subject",
+    "Status": "Status",
+    "Post Title": "Post title",
+    "Waiting": "Waiting",
+    "Generating": "Generating...",
+    "Success": "Success",
+    "Failed": "Failed"
   }
 }

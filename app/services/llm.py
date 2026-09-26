@@ -530,6 +530,62 @@ Please note that you must use English for generating video search terms; Chinese
     return search_terms
 
 
+def generate_post_metadata(
+    video_subject: str, video_script: str, language: str = ""
+) -> dict:
+    """
+    为发布到 TikTok / YouTube Shorts / Reels 生成标题与话题标签。
+    返回 {"title": str, "hashtags": List[str]}；失败时回退为以主题作为标题、空标签。
+    """
+    fallback = {"title": (video_subject or "").strip(), "hashtags": []}
+    prompt = f"""
+# Role: Social Video Post Writer
+
+## Goals:
+Write a catchy post title and hashtags for a short video, based on its subject and script.
+
+## Constrains:
+1. return only a json object in this exact format: {{"title": "...", "hashtags": ["#tag1", "#tag2"]}}
+2. the title must be at most 100 characters, attention-grabbing but not misleading.
+3. give 5 to 8 hashtags, each starting with #, without spaces inside a hashtag.
+4. write the title and hashtags in the same language as the video script.
+5. do not return anything other than the json object.
+
+# Initialization:
+- video subject: {video_subject}
+- video script: {video_script}
+""".strip()
+    if language:
+        prompt += f"\n- language: {language}"
+
+    for i in range(_max_retries):
+        response = ""
+        try:
+            response = _generate_response(prompt)
+            if not response or "Error: " in response:
+                logger.warning(f"failed to generate post metadata: {response}")
+                continue
+            match = re.search(r"\{.*\}", response, re.DOTALL)
+            data = json.loads(match.group() if match else response)
+            title = str(data.get("title", "")).strip()
+            hashtags = data.get("hashtags", [])
+            if isinstance(hashtags, str):
+                hashtags = hashtags.split()
+            hashtags = [
+                "#" + str(tag).strip().lstrip("#").replace(" ", "")
+                for tag in hashtags
+                if str(tag).strip().lstrip("#")
+            ]
+            if title:
+                return {"title": title[:100], "hashtags": hashtags}
+        except Exception as e:
+            logger.warning(f"failed to generate post metadata: {str(e)}")
+        if i < _max_retries:
+            logger.warning(f"failed to generate post metadata, trying again... {i + 1}")
+
+    return fallback
+
+
 if __name__ == "__main__":
     video_subject = "生命的意义是什么"
     script = generate_script(

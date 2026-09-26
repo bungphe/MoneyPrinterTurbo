@@ -128,6 +128,25 @@
     "Please Select a Valid Video Source": "Vui lòng chọn nguồn video hợp lệ",
     "Pexels API Keys": "Danh sách API Key Pexels",
     "Pixabay API Keys": "Danh sách API Key Pixabay",
-    "Script Paragraphs": "Số Đoạn Kịch Bản (quyết định độ dài video, 1 đoạn ≈ 30–60 giây)"
+    "Script Paragraphs": "Số Đoạn Kịch Bản (quyết định độ dài video, 1 đoạn ≈ 30–60 giây)",
+    "Batch Generation": "**Tạo Hàng Loạt** (:blue[Nhấn để mở rộng])",
+    "Batch Generation Help": "Nhập mỗi dòng một chủ đề, hoặc tải lên file CSV (cột bắt buộc: `chu_de`; cột tùy chọn: `kich_ban`, `tu_khoa`). Mỗi chủ đề sẽ được tạo thành video theo các cài đặt hiện tại ở trên, kèm tiêu đề và hashtag gợi ý để đăng. Chủ đề nào lỗi sẽ được bỏ qua, các chủ đề còn lại vẫn tiếp tục. Kết quả được lưu thành file CSV (mở được bằng Excel).",
+    "Batch Subjects": "Danh sách chủ đề (mỗi dòng một chủ đề)",
+    "Batch CSV File": "Hoặc tải lên file CSV",
+    "Download Sample CSV": "Tải file CSV mẫu",
+    "Start Batch Generation": "Bắt Đầu Tạo Hàng Loạt",
+    "Invalid Batch CSV": "File CSV không hợp lệ: cần có cột `chu_de` (hoặc `subject`)",
+    "Please Enter at Least One Subject": "Vui lòng nhập ít nhất một chủ đề",
+    "Batch Progress": "Tiến độ",
+    "Batch Generation Completed": "Hoàn tất tạo hàng loạt, thành công",
+    "Download Batch Results": "Tải file kết quả (CSV)",
+    "No.": "STT",
+    "Subject": "Chủ đề",
+    "Status": "Trạng thái",
+    "Post Title": "Tiêu đề đăng bài",
+    "Waiting": "Đang chờ",
+    "Generating": "Đang tạo...",
+    "Success": "Thành công",
+    "Failed": "Thất bại"
   }
 }
