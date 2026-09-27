@@ -81,5 +81,68 @@ class TestVideoService(unittest.TestCase):
         except Exception as e:
             self.fail(f"test wrap_text failed: {str(e)}")
 
+class TestFfmpegPipeline(unittest.TestCase):
+    """ffmpeg 快速合成流程的回归测试（效果需与原 MoviePy 流程一致）"""
+
+    def setUp(self):
+        import tempfile
+
+        self.tmp_dir = tempfile.mkdtemp()
+        self.source_video = os.path.join(self.tmp_dir, "landscape.mp4")
+        # 横屏测试素材，用于验证竖屏输出时的等比缩放与黑边
+        vd._image_to_video_with_ffmpeg(
+            os.path.join(resources_dir, "1.png"), self.source_video, 3
+        )
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+    def test_image_to_video(self):
+        clip = VideoFileClip(self.source_video)
+        self.assertAlmostEqual(clip.duration, 3, delta=0.1)
+        self.assertEqual(clip.size[0] % 2, 0)
+        self.assertEqual(clip.size[1] % 2, 0)
+        clip.close()
+
+    def test_render_clip_all_transitions(self):
+        for transition in [None, "FadeIn", "FadeOut", "SlideIn", "SlideOut"]:
+            output = os.path.join(self.tmp_dir, f"clip-{transition}.mp4")
+            duration = vd._render_clip_with_ffmpeg(
+                self.source_video, 0.5, 2, output, 540, 960, transition, "left", 2
+            )
+            clip = VideoFileClip(output)
+            self.assertEqual(clip.size, [540, 960])
+            self.assertEqual(clip.fps, vd.fps)
+            self.assertAlmostEqual(clip.duration, duration, delta=0.1)
+            clip.close()
+
+    def test_generate_video_trims_to_audio(self):
+        from moviepy import AudioClip
+        from app.models.schema import VideoParams
+
+        video = os.path.join(self.tmp_dir, "video.mp4")
+        vd._render_clip_with_ffmpeg(self.source_video, 0, 3, video, 1080, 1920, None, "left", 2)
+        audio = os.path.join(self.tmp_dir, "voice.mp3")
+        AudioClip(lambda t: 0 * t, duration=2, fps=44100).write_audiofile(audio, logger=None)
+        subtitle = os.path.join(self.tmp_dir, "sub.srt")
+        with open(subtitle, "w", encoding="utf-8") as fp:
+            fp.write("1\n00:00:00,000 --> 00:00:01,900\nPhụ đề tiếng Việt\n\n")
+
+        params = VideoParams(video_subject="test")
+        params.video_aspect = "9:16"
+        params.bgm_type = ""
+        output = os.path.join(self.tmp_dir, "final.mp4")
+        vd.generate_video(video, audio, subtitle, output, params)
+
+        clip = VideoFileClip(output)
+        # 成片时长应与配音一致，而不是更长的素材时长
+        self.assertAlmostEqual(clip.duration, 2, delta=0.1)
+        self.assertEqual(clip.size, [1080, 1920])
+        self.assertIsNotNone(clip.audio)
+        clip.close()
+
+
 if __name__ == "__main__":
     unittest.main() 

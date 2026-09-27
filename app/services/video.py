@@ -5,7 +5,9 @@ import random
 import gc
 import shutil
 import subprocess
-from typing import List
+
+import numpy as np
+from typing import List, Optional
 from loguru import logger
 from moviepy import (
     AudioFileClip,
@@ -240,6 +242,99 @@ def get_bgm_file(bgm_type: str = "random", bgm_file: str = ""):
     return ""
 
 
+TRANSITION_DURATION = 1
+
+
+def _run_ffmpeg(command: List[str]):
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        error_message = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(error_message[-2000:] or "ffmpeg failed")
+
+
+def _render_clip_with_ffmpeg(
+    file_path: str,
+    start_time: float,
+    duration: float,
+    output_file: str,
+    video_width: int,
+    video_height: int,
+    transition: Optional[str],
+    side: str,
+    threads: int,
+):
+    """
+    用 ffmpeg 一次完成：截取片段、等比缩放并补黑边、统一帧率、转场效果、编码。
+    与原 MoviePy 实现效果一致（等比缩放居中、黑色背景、1 秒淡入淡出/滑入滑出），
+    但不再逐帧在 Python 中处理，速度快很多。
+    """
+    w, h, d, t = video_width, video_height, duration, TRANSITION_DURATION
+    base = (
+        f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,"
+        f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={fps}"
+    )
+    if transition == VideoTransitionMode.fade_in.value:
+        filter_graph = f"{base},fade=t=in:st=0:d={t},format=yuv420p[v]"
+    elif transition == VideoTransitionMode.fade_out.value:
+        filter_graph = f"{base},fade=t=out:st={max(d - t, 0):.3f}:d={t},format=yuv420p[v]"
+    elif transition in (
+        VideoTransitionMode.slide_in.value,
+        VideoTransitionMode.slide_out.value,
+    ):
+        if transition == VideoTransitionMode.slide_in.value:
+            progress = f"min(t/{t},1)"
+            offsets = {
+                "left": (f"-W+W*{progress}", "0"),
+                "right": (f"W-W*{progress}", "0"),
+                "top": ("0", f"-H+H*{progress}"),
+                "bottom": ("0", f"H-H*{progress}"),
+            }
+        else:
+            progress = f"min(max((t-{max(d - t, 0):.3f})/{t},0),1)"
+            offsets = {
+                "left": (f"-W*{progress}", "0"),
+                "right": (f"W*{progress}", "0"),
+                "top": ("0", f"-H*{progress}"),
+                "bottom": ("0", f"H*{progress}"),
+            }
+        x_expr, y_expr = offsets.get(side, ("0", "0"))
+        filter_graph = (
+            f"color=c=black:s={w}x{h}:r={fps}:d={d:.3f}[bg];{base}[fg];"
+            f"[bg][fg]overlay=x='{x_expr}':y='{y_expr}':eval=frame:shortest=1,"
+            f"format=yuv420p[v]"
+        )
+    else:
+        filter_graph = f"{base},format=yuv420p[v]"
+
+    _run_ffmpeg(
+        [
+            get_ffmpeg_binary(),
+            "-y",
+            "-ss",
+            f"{start_time:.3f}",
+            "-t",
+            f"{d:.3f}",
+            "-i",
+            file_path,
+            "-filter_complex",
+            filter_graph,
+            "-map",
+            "[v]",
+            "-an",
+            "-c:v",
+            video_codec,
+            "-preset",
+            "ultrafast",
+            "-crf",
+            "18",
+            "-threads",
+            str(threads or 2),
+            output_file,
+        ]
+    )
+    return d
+
+
 def combine_videos(
     combined_video_path: str,
     video_paths: List[str],
@@ -307,6 +402,48 @@ def combine_videos(
         
         logger.debug(f"processing clip {i+1}: {subclipped_item.width}x{subclipped_item.height}, current duration: {video_duration:.2f}s, remaining: {audio_duration - video_duration:.2f}s")
         
+        clip_file = f"{output_dir}/temp-clip-{i+1}.mp4"
+        shuffle_side = random.choice(["left", "right", "top", "bottom"])
+        effective_transition = transition_value
+        if transition_value == VideoTransitionMode.shuffle.value:
+            effective_transition = random.choice(
+                [
+                    VideoTransitionMode.fade_in.value,
+                    VideoTransitionMode.fade_out.value,
+                    VideoTransitionMode.slide_in.value,
+                    VideoTransitionMode.slide_out.value,
+                ]
+            )
+
+        # 优先用 ffmpeg 直接处理片段；失败时回退到原 MoviePy 逐帧处理
+        try:
+            clip_duration_saved = _render_clip_with_ffmpeg(
+                file_path=subclipped_item.file_path,
+                start_time=subclipped_item.start_time,
+                duration=min(
+                    subclipped_item.end_time - subclipped_item.start_time,
+                    max_clip_duration,
+                ),
+                output_file=clip_file,
+                video_width=video_width,
+                video_height=video_height,
+                transition=effective_transition,
+                side=shuffle_side,
+                threads=threads,
+            )
+            processed_clips.append(
+                SubClippedVideoClip(
+                    file_path=clip_file,
+                    duration=clip_duration_saved,
+                    width=subclipped_item.width,
+                    height=subclipped_item.height,
+                )
+            )
+            video_duration += clip_duration_saved
+            continue
+        except Exception as e:
+            logger.warning(f"ffmpeg failed to process clip, fallback to moviepy: {str(e)}")
+
         try:
             clip = VideoFileClip(subclipped_item.file_path).subclipped(subclipped_item.start_time, subclipped_item.end_time)
             clip_duration = clip.duration
@@ -332,32 +469,21 @@ def combine_videos(
                     clip_resized = clip.resized(new_size=(new_width, new_height)).with_position("center")
                     clip = CompositeVideoClip([background, clip_resized])
                     
-            shuffle_side = random.choice(["left", "right", "top", "bottom"])
-            if transition_value in (None, VideoTransitionMode.none.value):
+            if effective_transition in (None, VideoTransitionMode.none.value):
                 clip = clip
-            elif transition_value == VideoTransitionMode.fade_in.value:
-                clip = video_effects.fadein_transition(clip, 1)
-            elif transition_value == VideoTransitionMode.fade_out.value:
-                clip = video_effects.fadeout_transition(clip, 1)
-            elif transition_value == VideoTransitionMode.slide_in.value:
-                clip = video_effects.slidein_transition(clip, 1, shuffle_side)
-            elif transition_value == VideoTransitionMode.slide_out.value:
-                clip = video_effects.slideout_transition(clip, 1, shuffle_side)
-            elif transition_value == VideoTransitionMode.shuffle.value:
-                transition_funcs = [
-                    lambda c: video_effects.fadein_transition(c, 1),
-                    lambda c: video_effects.fadeout_transition(c, 1),
-                    lambda c: video_effects.slidein_transition(c, 1, shuffle_side),
-                    lambda c: video_effects.slideout_transition(c, 1, shuffle_side),
-                ]
-                shuffle_transition = random.choice(transition_funcs)
-                clip = shuffle_transition(clip)
+            elif effective_transition == VideoTransitionMode.fade_in.value:
+                clip = video_effects.fadein_transition(clip, TRANSITION_DURATION)
+            elif effective_transition == VideoTransitionMode.fade_out.value:
+                clip = video_effects.fadeout_transition(clip, TRANSITION_DURATION)
+            elif effective_transition == VideoTransitionMode.slide_in.value:
+                clip = video_effects.slidein_transition(clip, TRANSITION_DURATION, shuffle_side)
+            elif effective_transition == VideoTransitionMode.slide_out.value:
+                clip = video_effects.slideout_transition(clip, TRANSITION_DURATION, shuffle_side)
 
             if clip.duration > max_clip_duration:
                 clip = clip.subclipped(0, max_clip_duration)
                 
             # wirte clip to temp file
-            clip_file = f"{output_dir}/temp-clip-{i+1}.mp4"
             # 中间片段只用于后续拼接，最终视频还会再编码一次：
             # 使用 ultrafast + 高质量 CRF 大幅缩短编码时间，同时基本不损失画质；
             # 原素材音轨最终会被配音替换，这里不写音频，保证各片段流格式一致以便无损拼接。
@@ -477,6 +603,124 @@ def wrap_text(text, max_width, font="Arial", fontsize=60):
     return result, height
 
 
+def _resolve_clip_position(clip, video_width: int, video_height: int):
+    # 与 MoviePy 合成时的定位规则一致："center" 表示居中，数值表示左上角坐标
+    x, y = clip.pos(0)
+    if isinstance(x, str):
+        x = {"left": 0, "center": (video_width - clip.w) / 2, "right": video_width - clip.w}[x]
+    if isinstance(y, str):
+        y = {"top": 0, "center": (video_height - clip.h) / 2, "bottom": video_height - clip.h}[y]
+    return int(x), int(y)
+
+
+def _render_text_clip_png(clip, video_width: int, video_height: int, output_file: str):
+    """把一条字幕渲染成与视频同尺寸的透明 PNG（字幕已放在最终位置）。"""
+    rgb = clip.get_frame(0).astype("uint8")
+    if clip.mask is not None:
+        alpha = (clip.mask.get_frame(0) * 255).clip(0, 255).astype("uint8")
+    else:
+        alpha = np.full(rgb.shape[:2], 255, dtype="uint8")
+    text_image = Image.fromarray(np.dstack([rgb, alpha]), "RGBA")
+    canvas = Image.new("RGBA", (video_width, video_height), (0, 0, 0, 0))
+    canvas.paste(text_image, _resolve_clip_position(clip, video_width, video_height), text_image)
+    canvas.save(output_file)
+
+
+def _compose_final_video_with_ffmpeg(
+    video_path: str,
+    audio_clip,
+    text_clips: list,
+    output_file: str,
+    video_width: int,
+    video_height: int,
+    duration: float,
+    audio_fps: int,
+    threads: int,
+):
+    work_dir = os.path.join(
+        os.path.dirname(output_file), f"compose-{os.path.basename(output_file)}"
+    )
+    os.makedirs(work_dir, exist_ok=True)
+    try:
+        audio_file = os.path.join(work_dir, "audio.m4a")
+        audio_clip.write_audiofile(
+            audio_file,
+            fps=audio_fps,
+            codec=audio_codec,
+            bitrate=audio_bitrate,
+            logger=None,
+        )
+
+        command = [get_ffmpeg_binary(), "-y", "-i", video_path]
+        if text_clips:
+            # 字幕轨：按时间排列的透明图片序列，空档处放全透明图片
+            blank_file = os.path.join(work_dir, "blank.png")
+            Image.new("RGBA", (video_width, video_height), (0, 0, 0, 0)).save(blank_file)
+            entries = []
+            cursor = 0.0
+            for index, clip in enumerate(sorted(text_clips, key=lambda c: c.start)):
+                start = max(float(clip.start), cursor)
+                end = min(float(clip.end), duration)
+                if end - start <= 0.001:
+                    continue
+                if start - cursor > 0.001:
+                    entries.append((blank_file, start - cursor))
+                png_file = os.path.join(work_dir, f"sub-{index + 1}.png")
+                _render_text_clip_png(clip, video_width, video_height, png_file)
+                entries.append((png_file, end - start))
+                cursor = end
+            entries.append((blank_file, max(duration - cursor, 0.001)))
+
+            list_file = os.path.join(work_dir, "subtitles.txt")
+            with open(list_file, "w", encoding="utf-8") as fp:
+                for file_path, entry_duration in entries:
+                    fp.write(f"file '{_escape_ffmpeg_concat_path(file_path)}'\n")
+                    fp.write(f"duration {entry_duration:.3f}\n")
+                # concat demuxer 会忽略最后一项的 duration，需要重复最后一个文件
+                fp.write(f"file '{_escape_ffmpeg_concat_path(entries[-1][0])}'\n")
+
+            command += ["-f", "concat", "-safe", "0", "-i", list_file, "-i", audio_file]
+            command += [
+                "-filter_complex",
+                f"[0:v]fps={fps}[base];[1:v]format=rgba[subs];"
+                f"[base][subs]overlay=0:0:eof_action=repeat,format=yuv420p[v]",
+                "-map",
+                "[v]",
+                "-map",
+                "2:a",
+            ]
+        else:
+            command += [
+                "-i",
+                audio_file,
+                "-vf",
+                f"fps={fps},format=yuv420p",
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+            ]
+
+        command += [
+            "-t",
+            f"{duration:.3f}",
+            "-c:v",
+            video_codec,
+            "-preset",
+            "medium",
+            "-threads",
+            str(threads or 2),
+            "-c:a",
+            "copy",
+            "-movflags",
+            "+faststart",
+            output_file,
+        ]
+        _run_ffmpeg(command)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
 def generate_video(
     video_path: str,
     audio_path: str,
@@ -575,6 +819,10 @@ def generate_video(
     audio_clip = AudioFileClip(audio_path).with_effects(
         [afx.MultiplyVolume(params.voice_volume)]
     )
+    # 成片时长以配音为准：拼接素材时为了覆盖配音会多出一段，
+    # 这里裁掉多余部分，避免结尾出现只有背景音乐、没有配音和字幕的画面。
+    final_duration = min(video_clip.duration, audio_clip.duration)
+    video_clip = video_clip.subclipped(0, final_duration)
 
     def make_textclip(text):
         return TextClip(
@@ -583,15 +831,14 @@ def generate_video(
             font_size=params.font_size,
         )
 
+    text_clips = []
     if subtitle_path and os.path.exists(subtitle_path):
         sub = SubtitlesClip(
             subtitles=subtitle_path, encoding="utf-8", make_textclip=make_textclip
         )
-        text_clips = []
         for item in sub.subtitles:
             clip = create_text_clip(subtitle_item=item)
             text_clips.append(clip)
-        video_clip = CompositeVideoClip([video_clip, *text_clips])
 
     bgm_file = get_bgm_file(bgm_type=params.bgm_type, bgm_file=params.bgm_file)
     if bgm_file:
@@ -600,17 +847,42 @@ def generate_video(
                 [
                     afx.MultiplyVolume(params.bgm_volume),
                     afx.AudioFadeOut(3),
-                    afx.AudioLoop(duration=video_clip.duration),
+                    afx.AudioLoop(duration=final_duration),
                 ]
             )
             audio_clip = CompositeAudioClip([audio_clip, bgm_clip])
         except Exception as e:
             logger.error(f"failed to add bgm: {str(e)}")
 
-    video_clip = video_clip.with_audio(audio_clip)
     # 显式沿用输入音频的采样率；如果取不到，再回退到 MoviePy 默认的 44100Hz。
     # 这样可以减少不同运行环境，尤其是 Docker 环境中再次重采样带来的音质波动。
     output_audio_fps = int(getattr(audio_clip, "fps", 0) or 44100)
+    audio_clip = audio_clip.with_duration(final_duration)
+
+    # 优先用 ffmpeg 合成字幕与音频（字幕预渲染为透明图片后叠加），
+    # 避免 MoviePy 逐帧合成；失败时回退到原来的 MoviePy 流程。
+    try:
+        _compose_final_video_with_ffmpeg(
+            video_path=video_path,
+            audio_clip=audio_clip,
+            text_clips=text_clips,
+            output_file=output_file,
+            video_width=video_width,
+            video_height=video_height,
+            duration=final_duration,
+            audio_fps=output_audio_fps,
+            threads=params.n_threads or 2,
+        )
+        video_clip.close()
+        return
+    except Exception as e:
+        logger.warning(f"ffmpeg failed to compose final video, fallback to moviepy: {str(e)}")
+
+    if text_clips:
+        video_clip = CompositeVideoClip([video_clip, *text_clips]).with_duration(
+            final_duration
+        )
+    video_clip = video_clip.with_audio(audio_clip)
     video_clip.write_videofile(
         output_file,
         audio_codec=audio_codec,
@@ -623,6 +895,50 @@ def generate_video(
     )
     video_clip.close()
     del video_clip
+
+
+def _image_to_video_with_ffmpeg(image_path: str, output_file: str, clip_duration: float):
+    """
+    用 ffmpeg 把图片转成缓慢放大的视频片段（与原 MoviePy 实现相同：每秒放大 3%，居中）。
+    先把图片缩到长边不超过 1920（成片最大尺寸），再放大 2 倍做 zoompan，避免缩放抖动。
+    """
+    with Image.open(image_path) as image:
+        width, height = image.size
+    scale = min(1.0, 1920 / max(width, height))
+    base_w = max(2, int(width * scale) // 2 * 2)
+    base_h = max(2, int(height * scale) // 2 * 2)
+    frames = max(1, int(round(clip_duration * fps)))
+    zoom_rate = clip_duration * 0.03
+    filter_graph = (
+        f"scale={base_w * 2}:{base_h * 2}:flags=bicubic,"
+        f"zoompan=z='1+{zoom_rate}*on/{frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        f":d={frames}:s={base_w}x{base_h}:fps={fps},setsar=1,format=yuv420p"
+    )
+    _run_ffmpeg(
+        [
+            get_ffmpeg_binary(),
+            "-y",
+            "-loop",
+            "1",
+            "-framerate",
+            str(fps),
+            "-t",
+            f"{clip_duration:.3f}",
+            "-i",
+            image_path,
+            "-vf",
+            filter_graph,
+            "-frames:v",
+            str(frames),
+            "-c:v",
+            video_codec,
+            "-preset",
+            "ultrafast",
+            "-crf",
+            "18",
+            output_file,
+        ]
+    )
 
 
 def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
@@ -667,6 +983,16 @@ def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
                 logger.info(f"processing image: {material_source_path}")
                 # 探测尺寸时已经打开过一次素材，这里先释放探测句柄，再重新创建用于导出的图片 clip。
                 close_clip(clip)
+                video_file = f"{material_source_path}.mp4"
+                # 优先用 ffmpeg 生成放大效果视频，失败时回退到 MoviePy 逐帧处理
+                try:
+                    _image_to_video_with_ffmpeg(material_source_path, video_file, clip_duration)
+                    material.url = video_file
+                    logger.success(f"image processed: {video_file}")
+                    valid_materials.append(material)
+                    continue
+                except Exception as e:
+                    logger.warning(f"ffmpeg failed to process image, fallback to moviepy: {str(e)}")
                 # Create an image clip and set its duration to 3 seconds
                 clip = (
                     ImageClip(material_source_path)
