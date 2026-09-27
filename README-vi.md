@@ -51,6 +51,21 @@ phụ đề và nhạc nền, rồi ghép lại thành một video ngắn chất
 - [x] Nguồn tư liệu video có **độ phân giải cao** và **miễn phí bản quyền**, bạn cũng có thể dùng **tư liệu cục bộ** của riêng mình
 - [x] Hỗ trợ tích hợp nhiều mô hình như **OpenAI**, **Moonshot**, **Azure**, **gpt4free**, **one-api**, **Qwen**, **Google Gemini**, **Ollama**, **DeepSeek**, **MiniMax**, **ERNIE**, **Pollinations**, **ModelScope** và nhiều mô hình khác
 
+## Phong cách kịch bản ✍️
+
+Ở mục **Cài Đặt Kịch Bản Video**, chọn **Phong Cách Kịch Bản** để AI viết theo kiểu phù hợp:
+
+| Phong cách | Dùng cho |
+|---|---|
+| Mặc định | Giữ cách viết gốc của dự án |
+| Bán hàng / Affiliate | Video TikTok Shop / Shopee: câu mở đầu gây chú ý, 2–3 lợi ích, kêu gọi mua hàng. AI được dặn **không bịa** giá, khuyến mãi, số liệu, đánh giá không có trong chủ đề — hãy ghi rõ thông tin sản phẩm trong chủ đề |
+| Kể chuyện | Câu chuyện ngắn có tò mò, cao trào, kết thúc ấn tượng |
+| Chia sẻ kiến thức | Mẹo, kiến thức: mở đầu bằng sự thật bất ngờ, ý cụ thể, tóm tắt, mời theo dõi |
+| Hài hước | Nội dung giải trí, kết bằng câu chốt |
+| Truyền cảm hứng | Nội dung tạo động lực |
+
+API `/api/v1/scripts` và `/api/v1/videos` nhận thêm trường `video_script_style` (`sales`, `storytelling`, `educational`, `funny`, `motivational`).
+
 ## Tạo video hàng loạt 📋
 
 Trên giao diện Web, mở mục **Tạo Hàng Loạt** (phía trên nút **Tạo Video**):
@@ -58,12 +73,15 @@ Trên giao diện Web, mở mục **Tạo Hàng Loạt** (phía trên nút **T�
 1. Chỉnh các cài đặt video, giọng đọc, phụ đề… như khi tạo một video. Mọi video trong lô sẽ dùng chung các cài đặt này.
 2. Nhập mỗi dòng một chủ đề, **hoặc** tải lên file CSV (nhấn **Tải file CSV mẫu** để lấy mẫu):
 
-   | chu_de (bắt buộc) | kich_ban (tùy chọn) | tu_khoa (tùy chọn) |
-   |---|---|---|
-   | 5 mẹo tiết kiệm tiền mỗi tháng | | |
-   | Cà phê sữa đá Việt Nam | Cà phê sữa đá là thức uống quen thuộc… | vietnamese coffee, iced coffee |
+   | chu_de (bắt buộc) | kich_ban (tùy chọn) | tu_khoa (tùy chọn) | phong_cach (tùy chọn) |
+   |---|---|---|---|
+   | 5 mẹo tiết kiệm tiền mỗi tháng | | | kien_thuc |
+   | Bình giữ nhiệt inox 500ml giữ lạnh 12 tiếng | | | ban_hang |
+   | Cà phê sữa đá Việt Nam | Cà phê sữa đá là thức uống quen thuộc… | vietnamese coffee, iced coffee | |
 
-   Bỏ trống `kich_ban` / `tu_khoa` thì AI sẽ tự viết. Tên cột tiếng Anh (`subject`, `script`, `keywords`) cũng được chấp nhận.
+   Bỏ trống `kich_ban` / `tu_khoa` thì AI sẽ tự viết. `phong_cach` nhận `ban_hang`, `ke_chuyen`, `kien_thuc`,
+   `hai_huoc`, `truyen_cam_hung`; bỏ trống thì dùng phong cách đang chọn trên giao diện.
+   Tên cột tiếng Anh (`subject`, `script`, `keywords`, `style`) cũng được chấp nhận.
 3. Nhấn **Bắt Đầu Tạo Hàng Loạt**. Chủ đề nào lỗi sẽ được bỏ qua, các chủ đề còn lại vẫn tiếp tục.
 4. Kết quả: mỗi video kèm **tiêu đề và hashtag** do AI gợi ý để đăng TikTok / Reels / Shorts, và file
    `storage/tasks/batch-.../ket_qua.csv` (mở bằng Excel) liệt kê đường dẫn video, tiêu đề, hashtag, trạng thái.

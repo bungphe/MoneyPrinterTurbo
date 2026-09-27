@@ -130,7 +130,7 @@
     "Pixabay API Keys": "Danh sách API Key Pixabay",
     "Script Paragraphs": "Số Đoạn Kịch Bản (quyết định độ dài video, 1 đoạn ≈ 30–60 giây)",
     "Batch Generation": "**Tạo Hàng Loạt** (:blue[Nhấn để mở rộng])",
-    "Batch Generation Help": "Nhập mỗi dòng một chủ đề, hoặc tải lên file CSV (cột bắt buộc: `chu_de`; cột tùy chọn: `kich_ban`, `tu_khoa`). Mỗi chủ đề sẽ được tạo thành video theo các cài đặt hiện tại ở trên, kèm tiêu đề và hashtag gợi ý để đăng. Chủ đề nào lỗi sẽ được bỏ qua, các chủ đề còn lại vẫn tiếp tục. Kết quả được lưu thành file CSV (mở được bằng Excel).",
+    "Batch Generation Help": "Nhập mỗi dòng một chủ đề, hoặc tải lên file CSV (cột bắt buộc: `chu_de`; cột tùy chọn: `kich_ban`, `tu_khoa`, `phong_cach` — ví dụ `ban_hang`, `ke_chuyen`, `kien_thuc`, `hai_huoc`, `truyen_cam_hung`). Mỗi chủ đề sẽ được tạo thành video theo các cài đặt hiện tại ở trên, kèm tiêu đề và hashtag gợi ý để đăng. Chủ đề nào lỗi sẽ được bỏ qua, các chủ đề còn lại vẫn tiếp tục. Kết quả được lưu thành file CSV (mở được bằng Excel).",
     "Batch Subjects": "Danh sách chủ đề (mỗi dòng một chủ đề)",
     "Batch CSV File": "Hoặc tải lên file CSV",
     "Download Sample CSV": "Tải file CSV mẫu",
@@ -147,6 +147,13 @@
     "Waiting": "Đang chờ",
     "Generating": "Đang tạo...",
     "Success": "Thành công",
-    "Failed": "Thất bại"
+    "Failed": "Thất bại",
+    "Script Style": "Phong Cách Kịch Bản",
+    "Script Style Default": "Mặc định (không theo phong cách riêng)",
+    "Script Style Sales": "Bán hàng / Affiliate (mở đầu gây chú ý, lợi ích, kêu gọi mua)",
+    "Script Style Storytelling": "Kể chuyện (tò mò, cao trào, kết thúc ấn tượng)",
+    "Script Style Educational": "Chia sẻ kiến thức (sự thật bất ngờ, mẹo cụ thể, tóm tắt)",
+    "Script Style Funny": "Hài hước (dí dỏm, kết bằng câu chốt)",
+    "Script Style Motivational": "Truyền cảm hứng (mạnh mẽ, tích cực)"
   }
 }

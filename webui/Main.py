@@ -618,6 +618,28 @@ with left_panel:
         )
         config.ui["paragraph_number"] = params.paragraph_number
 
+        # 文案风格：不同风格有不同的开头钩子和结尾号召
+        script_styles = [
+            (tr("Script Style Default"), ""),
+            (tr("Script Style Sales"), "sales"),
+            (tr("Script Style Storytelling"), "storytelling"),
+            (tr("Script Style Educational"), "educational"),
+            (tr("Script Style Funny"), "funny"),
+            (tr("Script Style Motivational"), "motivational"),
+        ]
+        saved_script_style = config.ui.get("script_style", "")
+        script_style_values = [v[1] for v in script_styles]
+        selected_style_index = st.selectbox(
+            tr("Script Style"),
+            options=range(len(script_styles)),
+            format_func=lambda x: script_styles[x][0],
+            index=script_style_values.index(saved_script_style)
+            if saved_script_style in script_style_values
+            else 0,
+        )
+        params.video_script_style = script_styles[selected_style_index][1]
+        config.ui["script_style"] = params.video_script_style
+
         if st.button(
             tr("Generate Video Script and Keywords"), key="auto_generate_script"
         ):
@@ -626,6 +648,7 @@ with left_panel:
                     video_subject=params.video_subject,
                     language=params.video_language,
                     paragraph_number=params.paragraph_number,
+                    style=params.video_script_style,
                 )
                 terms = llm.generate_terms(
                     params.video_subject,

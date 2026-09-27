@@ -106,6 +106,8 @@ class VideoParams(BaseModel):
     stroke_width: float = 1.5
     n_threads: Optional[int] = 2
     paragraph_number: Optional[int] = 1
+    # 文案风格：sales / storytelling / educational / funny / motivational，留空为默认
+    video_script_style: Optional[str] = ""
 
 
 class SubtitleRequest(BaseModel):
@@ -145,13 +147,15 @@ class VideoScriptParams:
     {
       "video_subject": "春天的花海",
       "video_language": "",
-      "paragraph_number": 1
+      "paragraph_number": 1,
+      "video_script_style": ""
     }
     """
 
     video_subject: Optional[str] = "春天的花海"
     video_language: Optional[str] = ""
     paragraph_number: Optional[int] = 1
+    video_script_style: Optional[str] = ""
 
 
 class VideoTermsParams:

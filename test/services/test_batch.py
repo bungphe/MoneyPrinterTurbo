@@ -103,5 +103,51 @@ class TestGeneratePostMetadata(unittest.TestCase):
         self.assertEqual(data, {"title": "tiết kiệm", "hashtags": []})
 
 
+class TestScriptStyle(unittest.TestCase):
+    def _prompt_for(self, **kwargs):
+        prompts = []
+
+        def fake(prompt):
+            prompts.append(prompt)
+            return "Đoạn kịch bản."
+
+        with mock.patch.object(llm, "_generate_response", side_effect=fake):
+            llm.generate_script(video_subject="Bình giữ nhiệt", language="vi-VN", **kwargs)
+        return prompts[0]
+
+    def test_default_style_keeps_original_prompt(self):
+        self.assertNotIn("## Style", self._prompt_for())
+
+    def test_sales_style_prompt(self):
+        prompt = self._prompt_for(style="ban_hang")
+        self.assertIn("## Style", prompt)
+        self.assertIn("call to action", prompt)
+        self.assertIn("never invent prices", prompt)
+
+    def test_resolve_aliases(self):
+        self.assertEqual(llm.resolve_script_style("Bán hàng"), "sales")
+        self.assertEqual(llm.resolve_script_style("ke_chuyen"), "storytelling")
+        self.assertEqual(llm.resolve_script_style("khong-ton-tai"), "")
+        for key in llm.SCRIPT_STYLES:
+            self.assertEqual(llm.resolve_script_style(key), key)
+
+    def test_batch_row_style_overrides_default(self):
+        seen = {}
+
+        def fake_start(task_id, params):
+            seen[params.video_subject] = params.video_script_style
+            return None
+
+        base = VideoParams(video_subject="")
+        base.video_script_style = "educational"
+        csv_content = "chu_de,phong_cach\nA,ban_hang\nB,\n".encode("utf-8")
+        items = batch.parse_batch_input(csv_content=csv_content)
+        with mock.patch.object(batch.tm, "start", side_effect=fake_start):
+            output = batch.run_batch(items, base, batch_id="batch-unittest-style")
+        shutil.rmtree(utils.task_dir("batch-unittest-style"), ignore_errors=True)
+        self.assertEqual(seen, {"A": "sales", "B": "educational"})
+        self.assertEqual(base.video_script_style, "educational")
+
+
 if __name__ == "__main__":
     unittest.main()

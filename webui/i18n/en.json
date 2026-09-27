@@ -130,7 +130,7 @@
     "Pixabay API Keys": "Pixabay API Keys",
     "Script Paragraphs": "Script Paragraphs (controls video length, 1 paragraph ≈ 30–60 seconds)",
     "Batch Generation": "**Batch Generation** (:blue[Click to expand])",
-    "Batch Generation Help": "Enter one subject per line, or upload a CSV file (required column: `subject`; optional: `script`, `keywords`). Each subject becomes a video using the current settings above, with a suggested post title and hashtags. Failed subjects are skipped and the rest continue. Results are saved as a CSV file (opens in Excel).",
+    "Batch Generation Help": "Enter one subject per line, or upload a CSV file (required column: `subject`; optional: `script`, `keywords`, `style` — e.g. `sales`, `storytelling`, `educational`, `funny`, `motivational`). Each subject becomes a video using the current settings above, with a suggested post title and hashtags. Failed subjects are skipped and the rest continue. Results are saved as a CSV file (opens in Excel).",
     "Batch Subjects": "Subjects (one per line)",
     "Batch CSV File": "Or upload a CSV file",
     "Download Sample CSV": "Download sample CSV",
@@ -147,6 +147,13 @@
     "Waiting": "Waiting",
     "Generating": "Generating...",
     "Success": "Success",
-    "Failed": "Failed"
+    "Failed": "Failed",
+    "Script Style": "Script Style",
+    "Script Style Default": "Default",
+    "Script Style Sales": "Sales / Affiliate (hook, benefits, call to action)",
+    "Script Style Storytelling": "Storytelling (curiosity, twist, memorable ending)",
+    "Script Style Educational": "Educational (surprising fact, practical tips, recap)",
+    "Script Style Funny": "Funny (witty, ends with a punchline)",
+    "Script Style Motivational": "Motivational (powerful, uplifting)"
   }
 }

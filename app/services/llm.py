@@ -383,8 +383,67 @@ def _generate_response(prompt: str) -> str:
         return f"Error: {str(e)}"
 
 
+# 文案风格：key -> 给大模型的风格要求（提示词用英文，输出语言由 language 决定）
+SCRIPT_STYLES = {
+    "sales": (
+        "Write a persuasive short-video sales script for the product in the video subject, "
+        "suitable for TikTok Shop / Shopee affiliate videos. Open with a hook sentence that calls out "
+        "a problem or desire of the viewer within the first 3 seconds. Then present 2-3 concrete benefits "
+        "of the product in natural spoken language. Add urgency or social proof only if it is plausible, "
+        "and never invent prices, discounts, statistics, reviews or guarantees that are not given in the "
+        "video subject. End with a short, clear call to action, such as tapping the product link or the "
+        "cart to buy."
+    ),
+    "storytelling": (
+        "Tell it as a short story. Open with an intriguing first sentence that makes viewers want to know "
+        "what happens next, build tension or curiosity, reveal a twist or resolution, and end with a "
+        "memorable closing line or lesson."
+    ),
+    "educational": (
+        "Make it an informative explainer. Open with a surprising fact or a question the viewer wants "
+        "answered, deliver clear, practical and specific points, briefly recap the key takeaway, and end "
+        "by inviting viewers to follow for more useful tips."
+    ),
+    "funny": (
+        "Make it light-hearted and funny. Open with a relatable or absurd hook, use playful exaggeration "
+        "and witty observations that are never offensive, and end with a punchline."
+    ),
+    "motivational": (
+        "Make it inspirational. Open with a powerful statement or question, speak directly to the viewer "
+        "with warm, energetic language, give one clear message or action they can take, and end with an "
+        "uplifting closing line."
+    ),
+}
+
+# 允许用越南语 / 英语别名指定风格（批量 CSV 中常用）
+SCRIPT_STYLE_ALIASES = {
+    "sales": "sales", "ban_hang": "sales", "bán hàng": "sales", "ban hang": "sales",
+    "storytelling": "storytelling", "story": "storytelling", "ke_chuyen": "storytelling",
+    "kể chuyện": "storytelling", "ke chuyen": "storytelling",
+    "educational": "educational", "education": "educational", "kien_thuc": "educational",
+    "kiến thức": "educational", "chia sẻ kiến thức": "educational", "kien thuc": "educational",
+    "funny": "funny", "hai_huoc": "funny", "hài hước": "funny", "hai huoc": "funny",
+    "motivational": "motivational", "truyen_cam_hung": "motivational",
+    "truyền cảm hứng": "motivational", "truyen cam hung": "motivational",
+}
+
+
+def resolve_script_style(style: str) -> str:
+    """把风格名称（key 或别名）规范为 SCRIPT_STYLES 的 key；无法识别时返回空字符串（默认风格）。"""
+    key = (style or "").strip().lower()
+    if not key:
+        return ""
+    resolved = SCRIPT_STYLE_ALIASES.get(key, "")
+    if not resolved:
+        logger.warning(f"unknown script style: {style}, using default style")
+    return resolved
+
+
 def generate_script(
-    video_subject: str, language: str = "", paragraph_number: int = 1
+    video_subject: str,
+    language: str = "",
+    paragraph_number: int = 1,
+    style: str = "",
 ) -> str:
     prompt = f"""
 # Role: Video Script Generator
@@ -408,6 +467,14 @@ Generate a script for a video, depending on the subject of the video.
 """.strip()
     if language:
         prompt += f"\n- language: {language}"
+
+    style = resolve_script_style(style)
+    if style:
+        prompt += (
+            f"\n\n## Style:\n{SCRIPT_STYLES[style]}\n"
+            "The script will be read aloud by a text-to-speech voice, so write natural spoken sentences "
+            "without emojis, hashtags or list symbols."
+        )
 
     final_script = ""
     logger.info(f"subject: {video_subject}")

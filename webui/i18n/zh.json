@@ -130,7 +130,7 @@
     "Pixabay API Keys": "Pixabay API Keys",
     "Script Paragraphs": "文案段落数（决定视频长度，1 段约 30-60 秒）",
     "Batch Generation": "**批量生成**（:blue[点击展开]）",
-    "Batch Generation Help": "每行输入一个主题，或上传 CSV 文件（必填列：`主题`/`subject`；可选列：`文案`、`关键词`）。每个主题将按上方当前设置生成视频，并附带建议的发布标题和话题标签。失败的主题会被跳过，其余继续生成。结果保存为 CSV 文件（可用 Excel 打开）。",
+    "Batch Generation Help": "每行输入一个主题，或上传 CSV 文件（必填列：`主题`/`subject`；可选列：`文案`、`关键词`、`风格`（如 `sales`、`storytelling`、`educational`、`funny`、`motivational`））。每个主题将按上方当前设置生成视频，并附带建议的发布标题和话题标签。失败的主题会被跳过，其余继续生成。结果保存为 CSV 文件（可用 Excel 打开）。",
     "Batch Subjects": "主题列表（每行一个）",
     "Batch CSV File": "或上传 CSV 文件",
     "Download Sample CSV": "下载 CSV 模板",
@@ -147,6 +147,13 @@
     "Waiting": "等待中",
     "Generating": "生成中...",
     "Success": "成功",
-    "Failed": "失败"
+    "Failed": "失败",
+    "Script Style": "文案风格",
+    "Script Style Default": "默认",
+    "Script Style Sales": "带货 / 联盟营销（开头吸引、卖点、引导购买）",
+    "Script Style Storytelling": "讲故事（悬念、反转、难忘结尾）",
+    "Script Style Educational": "知识分享（惊人事实、实用技巧、总结）",
+    "Script Style Funny": "幽默（风趣，结尾抖包袱）",
+    "Script Style Motivational": "励志（有力量、积极向上）"
   }
 }

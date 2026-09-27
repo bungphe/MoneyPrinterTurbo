@@ -23,6 +23,7 @@ from app.utils import utils
 SUBJECT_COLUMNS = ("subject", "topic", "chu_de", "chủ đề", "chu de", "主题")
 SCRIPT_COLUMNS = ("script", "kich_ban", "kịch bản", "kich ban", "文案")
 KEYWORDS_COLUMNS = ("keywords", "terms", "tu_khoa", "từ khóa", "tu khoa", "关键词")
+STYLE_COLUMNS = ("style", "phong_cach", "phong cách", "phong cach", "风格")
 
 RESULT_COLUMNS = ["stt", "chu_de", "trang_thai", "video", "tieu_de", "hashtag", "loi"]
 
@@ -30,10 +31,10 @@ STATUS_SUCCESS = "thanh_cong"
 STATUS_FAILED = "that_bai"
 
 SAMPLE_CSV = (
-    "chu_de,kich_ban,tu_khoa\n"
-    "5 mẹo tiết kiệm tiền mỗi tháng,,\n"
-    "Lợi ích của việc uống đủ nước,,\n"
-    'Cà phê sữa đá Việt Nam,"Cà phê sữa đá là thức uống quen thuộc của người Việt.","vietnamese coffee, iced coffee"\n'
+    "chu_de,kich_ban,tu_khoa,phong_cach\n"
+    "5 mẹo tiết kiệm tiền mỗi tháng,,,kien_thuc\n"
+    "Bình giữ nhiệt inox 500ml giữ lạnh 12 tiếng,,,ban_hang\n"
+    'Cà phê sữa đá Việt Nam,"Cà phê sữa đá là thức uống quen thuộc của người Việt.","vietnamese coffee, iced coffee",\n'
 )
 
 
@@ -42,6 +43,7 @@ class BatchItem:
     subject: str
     script: str = ""
     keywords: str = ""
+    style: str = ""
 
 
 @dataclass
@@ -85,6 +87,7 @@ def parse_batch_input(text: str = "", csv_content: Optional[bytes] = None) -> Li
                         subject=subject,
                         script=_pick(row, SCRIPT_COLUMNS),
                         keywords=_pick(row, KEYWORDS_COLUMNS),
+                        style=_pick(row, STYLE_COLUMNS),
                     )
                 )
 
@@ -108,6 +111,9 @@ def _build_params(base_params: VideoParams, item: BatchItem) -> VideoParams:
     params.video_subject = item.subject
     params.video_script = item.script
     params.video_terms = item.keywords
+    # CSV 中每行可单独指定文案风格，否则沿用界面上选择的风格
+    if item.style:
+        params.video_script_style = llm.resolve_script_style(item.style)
     return params
 
 
