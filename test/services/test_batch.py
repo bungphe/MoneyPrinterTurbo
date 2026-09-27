@@ -89,6 +89,22 @@ class TestRunBatch(unittest.TestCase):
         self.assertEqual(rows[1]["trang_thai"], batch.STATUS_FAILED)
 
 
+class TestMergeBatchVideos(unittest.TestCase):
+    def test_only_successful_videos_in_order(self):
+        results = [
+            batch.BatchResult(index=1, subject="a", status=batch.STATUS_SUCCESS, videos=[__file__]),
+            batch.BatchResult(index=2, subject="b", status=batch.STATUS_FAILED),
+            batch.BatchResult(index=3, subject="c", status=batch.STATUS_SUCCESS, videos=["/khong/ton/tai.mp4"]),
+        ]
+        with mock.patch.object(batch.vd, "merge_video_files", return_value="out.mp4") as merge:
+            batch.merge_batch_videos(results, "out.mp4", "crossfade")
+        merge.assert_called_once_with([__file__], "out.mp4", transition="crossfade")
+
+    def test_no_success_raises(self):
+        with self.assertRaises(ValueError):
+            batch.merge_batch_videos([], "out.mp4")
+
+
 class TestGeneratePostMetadata(unittest.TestCase):
     def test_parses_json_wrapped_in_text(self):
         response = 'Đây là kết quả:\n{"title": "5 mẹo tiết kiệm", "hashtags": ["tietkiem", "#meo hay"]}'

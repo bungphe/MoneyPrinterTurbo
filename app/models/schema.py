@@ -27,6 +27,8 @@ class VideoTransitionMode(str, Enum):
     fade_out = "FadeOut"
     slide_in = "SlideIn"
     slide_out = "SlideOut"
+    # 相邻片段画面互相溶解，不经过黑屏
+    crossfade = "Crossfade"
 
 
 class VideoAspect(str, Enum):

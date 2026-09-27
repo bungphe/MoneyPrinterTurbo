@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import sys
 from uuid import uuid4
 
@@ -22,7 +23,7 @@ from app.models.schema import (
     VideoParams,
     VideoTransitionMode,
 )
-from app.services import batch, llm, voice
+from app.services import batch, llm, video, voice
 from app.services import task as tm
 from app.utils import utils
 
@@ -741,6 +742,7 @@ with middle_panel:
         # 视频转场模式
         video_transition_modes = [
             (tr("None"), VideoTransitionMode.none.value),
+            (tr("Crossfade"), VideoTransitionMode.crossfade.value),
             (tr("Shuffle"), VideoTransitionMode.shuffle.value),
             (tr("FadeIn"), VideoTransitionMode.fade_in.value),
             (tr("FadeOut"), VideoTransitionMode.fade_out.value),
@@ -1223,9 +1225,83 @@ with st.expander(tr("Batch Generation"), expanded=False):
         file_name="mau_tao_hang_loat.csv",
         mime="text/csv",
     )
+    merge_join_styles = [
+        (tr("Merge Style Cut"), "none"),
+        (tr("Merge Style Crossfade"), "crossfade"),
+    ]
+    batch_merge = st.checkbox(tr("Merge Batch Videos"), key="batch_merge")
+    batch_merge_style = merge_join_styles[
+        st.selectbox(
+            tr("Merge Style"),
+            options=range(len(merge_join_styles)),
+            format_func=lambda x: merge_join_styles[x][0],
+            key="batch_merge_style",
+            disabled=not batch_merge,
+        )
+    ][1]
     batch_button = st.button(
         tr("Start Batch Generation"), use_container_width=True, key="batch_start"
     )
+
+# 合并成片：把多个已生成的视频首尾相接合并成一个合集视频
+with st.expander(tr("Merge Videos"), expanded=False):
+    st.info(tr("Merge Videos Help"))
+    merge_uploads = st.file_uploader(
+        tr("Merge Video Files"),
+        type=["mp4", "mov", "MP4", "MOV"],
+        accept_multiple_files=True,
+        key="merge_video_files",
+    )
+    # Streamlit 显示的上传列表是倒序的，这里统一按文件名自然排序（1, 2, ..., 10）并显示合并顺序
+    merge_uploads = sorted(
+        merge_uploads or [],
+        key=lambda f: [
+            int(part) if part.isdigit() else part.lower()
+            for part in re.split(r"(\d+)", f.name)
+        ],
+    )
+    if merge_uploads:
+        st.write(
+            tr("Merge Order")
+            + "\n"
+            + "\n".join(f"{i}. {f.name}" for i, f in enumerate(merge_uploads, start=1))
+        )
+    merge_style = merge_join_styles[
+        st.selectbox(
+            tr("Merge Style"),
+            options=range(len(merge_join_styles)),
+            format_func=lambda x: merge_join_styles[x][0],
+            key="merge_style",
+        )
+    ][1]
+    merge_button = st.button(
+        tr("Start Merging Videos"), use_container_width=True, key="merge_start"
+    )
+
+if merge_button:
+    if not merge_uploads or len(merge_uploads) < 2:
+        st.error(tr("Please Upload at Least Two Videos"))
+    else:
+        merge_dir = utils.storage_dir(
+            os.path.join("merge", str(uuid4())), create=True
+        )
+        merge_inputs = []
+        for index, file in enumerate(merge_uploads, start=1):
+            input_path = os.path.join(merge_dir, f"{index:03d}_{file.name}")
+            with open(input_path, "wb") as f:
+                f.write(file.getbuffer())
+            merge_inputs.append(input_path)
+        merged_file = os.path.join(merge_dir, "tong_hop.mp4")
+        with st.spinner(tr("Merging Videos")):
+            try:
+                video.merge_video_files(merge_inputs, merged_file, transition=merge_style)
+            except Exception as e:
+                logger.exception("failed to merge videos")
+                merged_file = ""
+                st.error(f"{tr('Merge Videos Failed')}: {str(e)[-300:]}")
+        if merged_file:
+            st.success(f"{tr('Merge Videos Completed')}: {merged_file}")
+            st.video(merged_file)
 
 if batch_button:
     config.save_config()
@@ -1307,6 +1383,19 @@ if batch_button:
                 st.video(video_file)
                 st.code(f"{item_result.title}\n{' '.join(item_result.hashtags)}", language=None)
             col_index += 1
+
+    if batch_merge and success_count:
+        merged_file = os.path.join(
+            utils.task_dir(batch_output["batch_id"]), "tong_hop.mp4"
+        )
+        with st.spinner(tr("Merging Videos")):
+            try:
+                batch.merge_batch_videos(batch_results, merged_file, batch_merge_style)
+                st.success(f"{tr('Merge Videos Completed')}: {merged_file}")
+                st.video(merged_file)
+            except Exception as e:
+                logger.exception("failed to merge batch videos")
+                st.error(f"{tr('Merge Videos Failed')}: {str(e)[-300:]}")
 
     open_task_folder(batch_output["batch_id"])
 

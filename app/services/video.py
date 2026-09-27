@@ -2,6 +2,7 @@ import glob
 import itertools
 import os
 import random
+import re
 import gc
 import shutil
 import subprocess
@@ -243,6 +244,8 @@ def get_bgm_file(bgm_type: str = "random", bgm_file: str = ""):
 
 
 TRANSITION_DURATION = 1
+# 合并视频时单次 ffmpeg 调用最多打开的输入数量，超过则分组合并，避免占用过多内存
+MERGE_MAX_INPUTS = 12
 
 
 def _run_ffmpeg(command: List[str]):
@@ -335,6 +338,180 @@ def _render_clip_with_ffmpeg(
     return d
 
 
+def _probe_media(file_path: str):
+    """返回 (时长秒数, 是否包含音频)。"""
+    result = subprocess.run(
+        [get_ffmpeg_binary(), "-hide_banner", "-i", file_path],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    info = result.stderr or ""
+    match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", info)
+    if not match:
+        raise RuntimeError(f"cannot read media duration: {file_path}")
+    hours, minutes, seconds = match.groups()
+    duration = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    has_audio = re.search(r"Stream #\S+.*Audio:", info) is not None
+    return duration, has_audio
+
+
+def crossfade_junction(previous_duration: float, next_duration: float) -> float:
+    """两段之间的溶解时长：默认 1 秒，片段较短时缩短，保证不超过任一片段的一半。"""
+    return max(0.05, min(TRANSITION_DURATION, previous_duration / 2, next_duration / 2))
+
+
+def _merge_group(
+    files: List[str],
+    durations: List[float],
+    audio_flags: List[bool],
+    output_file: str,
+    width: int,
+    height: int,
+    transition: str,
+    with_audio: bool,
+    encode_args: List[str],
+):
+    filters = []
+    for i, (duration, has_audio) in enumerate(zip(durations, audio_flags)):
+        filters.append(
+            f"[{i}:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={fps},"
+            f"format=yuv420p,tpad=stop_mode=clone:stop_duration=2,"
+            # xfade 要求固定帧率，trim/setpts 之后需要再次声明帧率
+            f"trim=duration={duration:.3f},setpts=PTS-STARTPTS,fps={fps},settb=AVTB[v{i}]"
+        )
+        if with_audio:
+            source = f"[{i}:a]" if has_audio else "anullsrc=r=44100:cl=stereo,"
+            filters.append(
+                f"{source}aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                f"apad,atrim=duration={duration:.3f},asetpts=PTS-STARTPTS[a{i}]"
+            )
+
+    if transition == "crossfade" and len(files) > 1:
+        video_label, audio_label, length = "v0", "a0", durations[0]
+        for k in range(1, len(files)):
+            junction = crossfade_junction(durations[k - 1], durations[k])
+            offset = max(length - junction, 0)
+            filters.append(
+                f"[{video_label}][v{k}]xfade=transition=fade:duration={junction:.3f}"
+                f":offset={offset:.3f}[vx{k}]"
+            )
+            video_label = f"vx{k}"
+            if with_audio:
+                filters.append(f"[{audio_label}][a{k}]acrossfade=d={junction:.3f}[ax{k}]")
+                audio_label = f"ax{k}"
+            length = length + durations[k] - junction
+    else:
+        streams = "".join(
+            f"[v{i}][a{i}]" if with_audio else f"[v{i}]" for i in range(len(files))
+        )
+        filters.append(
+            f"{streams}concat=n={len(files)}:v=1:a={1 if with_audio else 0}"
+            + ("[vcat][acat]" if with_audio else "[vcat]")
+        )
+        video_label, audio_label = "vcat", "acat"
+
+    filter_file = f"{output_file}.filter.txt"
+    with open(filter_file, "w", encoding="utf-8") as fp:
+        fp.write(";\n".join(filters))
+    command = [get_ffmpeg_binary(), "-y"]
+    for file_path in files:
+        command += ["-i", file_path]
+    command += ["-filter_complex_script", filter_file, "-map", f"[{video_label}]"]
+    if with_audio:
+        command += ["-map", f"[{audio_label}]", "-c:a", audio_codec, "-b:a", audio_bitrate]
+    else:
+        command += ["-an"]
+    command += ["-c:v", video_codec] + encode_args + ["-movflags", "+faststart", output_file]
+    try:
+        _run_ffmpeg(command)
+    finally:
+        delete_files(filter_file)
+
+
+def merge_video_files(
+    files: List[str],
+    output_file: str,
+    transition: str = "none",
+    width: int = 0,
+    height: int = 0,
+    with_audio: bool = True,
+    threads: int = 2,
+    final_quality: bool = True,
+) -> str:
+    """
+    把多个视频首尾相接合并为一个视频。
+    - transition: "none" 直接切换；"crossfade" 相邻两段画面（和声音）互相溶解，不经过黑屏
+    - width/height 为 0 时使用第一个视频的尺寸；尺寸不同的视频会等比缩放并补黑边
+    - with_audio: 是否保留音频（无音轨的视频会自动补静音）
+    - 输入较多时分组合并，组与组之间同样使用所选的转场
+    """
+    if not files:
+        raise ValueError("no video files to merge")
+    probes = [_probe_media(f) for f in files]
+    if not width or not height:
+        first = VideoFileClip(files[0])
+        width, height = first.size
+        close_clip(first)
+    width, height = width // 2 * 2, height // 2 * 2
+
+    final_args = (
+        ["-preset", "medium", "-crf", "23"]
+        if final_quality
+        else ["-preset", "ultrafast", "-crf", "18"]
+    )
+    final_args += ["-threads", str(threads or 2)]
+
+    if len(files) <= MERGE_MAX_INPUTS:
+        _merge_group(
+            files,
+            [p[0] for p in probes],
+            [p[1] for p in probes],
+            output_file,
+            width,
+            height,
+            transition,
+            with_audio,
+            final_args,
+        )
+        return output_file
+
+    # 分组合并：组内先合并成高质量中间文件，再递归合并各组
+    group_files = []
+    intermediate_args = ["-preset", "ultrafast", "-crf", "18", "-threads", str(threads or 2)]
+    try:
+        for start in range(0, len(files), MERGE_MAX_INPUTS):
+            group = files[start : start + MERGE_MAX_INPUTS]
+            group_probes = probes[start : start + MERGE_MAX_INPUTS]
+            # 递归合并时每一层使用不同的文件名，避免覆盖上一层正在读取的中间文件
+            group_file = f"{output_file}.{os.urandom(4).hex()}.part{len(group_files) + 1}.mp4"
+            _merge_group(
+                group,
+                [p[0] for p in group_probes],
+                [p[1] for p in group_probes],
+                group_file,
+                width,
+                height,
+                transition,
+                with_audio,
+                intermediate_args,
+            )
+            group_files.append(group_file)
+        return merge_video_files(
+            group_files,
+            output_file,
+            transition=transition,
+            width=width,
+            height=height,
+            with_audio=with_audio,
+            threads=threads,
+            final_quality=final_quality,
+        )
+    finally:
+        delete_files(group_files)
+
+
 def combine_videos(
     combined_video_path: str,
     video_paths: List[str],
@@ -395,6 +572,18 @@ def combine_videos(
         
     logger.debug(f"total subclipped items: {len(subclipped_items)}")
     
+    # 溶解转场会让相邻片段重叠，累计时长时需要减去重叠部分
+    is_crossfade = transition_value == VideoTransitionMode.crossfade.value
+
+    def add_processed_clip(clip_info):
+        nonlocal video_duration
+        if is_crossfade and processed_clips:
+            video_duration -= crossfade_junction(
+                processed_clips[-1].duration, clip_info.duration
+            )
+        processed_clips.append(clip_info)
+        video_duration += clip_info.duration
+
     # Add downloaded clips over and over until the duration of the audio (max_duration) has been reached
     for i, subclipped_item in enumerate(subclipped_items):
         if video_duration > audio_duration:
@@ -405,7 +594,10 @@ def combine_videos(
         clip_file = f"{output_dir}/temp-clip-{i+1}.mp4"
         shuffle_side = random.choice(["left", "right", "top", "bottom"])
         effective_transition = transition_value
-        if transition_value == VideoTransitionMode.shuffle.value:
+        if is_crossfade:
+            # 溶解转场在拼接阶段处理，单个片段不加效果
+            effective_transition = None
+        elif transition_value == VideoTransitionMode.shuffle.value:
             effective_transition = random.choice(
                 [
                     VideoTransitionMode.fade_in.value,
@@ -431,7 +623,7 @@ def combine_videos(
                 side=shuffle_side,
                 threads=threads,
             )
-            processed_clips.append(
+            add_processed_clip(
                 SubClippedVideoClip(
                     file_path=clip_file,
                     duration=clip_duration_saved,
@@ -439,7 +631,6 @@ def combine_videos(
                     height=subclipped_item.height,
                 )
             )
-            video_duration += clip_duration_saved
             continue
         except Exception as e:
             logger.warning(f"ffmpeg failed to process clip, fallback to moviepy: {str(e)}")
@@ -502,8 +693,7 @@ def combine_videos(
             clip_duration_saved = clip.duration
             close_clip(clip)
 
-            processed_clips.append(SubClippedVideoClip(file_path=clip_file, duration=clip_duration_saved, width=clip_w, height=clip_h))
-            video_duration += clip_duration_saved
+            add_processed_clip(SubClippedVideoClip(file_path=clip_file, duration=clip_duration_saved, width=clip_w, height=clip_h))
             
         except Exception as e:
             logger.error(f"failed to process clip: {str(e)}")
@@ -515,8 +705,7 @@ def combine_videos(
         for clip in itertools.cycle(base_clips):
             if video_duration >= audio_duration:
                 break
-            processed_clips.append(clip)
-            video_duration += clip.duration
+            add_processed_clip(clip)
         logger.info(f"video duration: {video_duration:.2f}s, audio duration: {audio_duration:.2f}s, looped {len(processed_clips)-len(base_clips)} clips")
      
     # merge video clips progressively, avoid loading all videos at once to avoid memory overflow
@@ -534,16 +723,29 @@ def combine_videos(
         return combined_video_path
 
     clip_files = [clip.file_path for clip in processed_clips]
-    logger.info(f"concatenating {len(clip_files)} clips with ffmpeg")
-    concat_video_clips_with_ffmpeg(
-        clip_files=clip_files,
-        output_file=combined_video_path,
-        threads=threads,
-        output_dir=output_dir,
-    )
-    
+    if is_crossfade:
+        logger.info(f"merging {len(clip_files)} clips with crossfade")
+        merge_video_files(
+            clip_files,
+            combined_video_path,
+            transition="crossfade",
+            width=video_width,
+            height=video_height,
+            with_audio=False,
+            threads=threads,
+            final_quality=False,
+        )
+    else:
+        logger.info(f"concatenating {len(clip_files)} clips with ffmpeg")
+        concat_video_clips_with_ffmpeg(
+            clip_files=clip_files,
+            output_file=combined_video_path,
+            threads=threads,
+            output_dir=output_dir,
+        )
+
     # clean temp files
-    delete_files(clip_files)
+    delete_files(list(set(clip_files)))
             
     logger.info("video combining completed")
     return combined_video_path

@@ -66,6 +66,15 @@ phụ đề và nhạc nền, rồi ghép lại thành một video ngắn chất
 
 API `/api/v1/scripts` và `/api/v1/videos` nhận thêm trường `video_script_style` (`sales`, `storytelling`, `educational`, `funny`, `motivational`).
 
+## Chuyển cảnh & ghép video 🎞️
+
+- **Hiệu ứng chuyển cảnh** (mục Cài Đặt Video): chọn **Hòa Cảnh (Crossfade)** để các cảnh quay tan vào nhau
+  khoảng 1 giây, không qua màn đen. "Hiện dần / Mờ dần" chuyển qua màn đen; "Không có hiệu ứng" là cắt thẳng.
+- **Ghép Video Thành Phẩm**: mở mục này, tải lên từ 2 video trở lên, chọn kiểu nối (cắt thẳng hoặc hòa cảnh cả
+  hình lẫn tiếng), nhấn **Bắt Đầu Ghép Video**. Video được ghép **theo thứ tự tên file** (đặt tên `01_...`, `02_...`);
+  thứ tự được hiển thị trước khi ghép. Video khác khung hình được thêm viền đen theo video đầu tiên, video không có
+  tiếng được chèn khoảng lặng. Kết quả lưu tại `storage/merge/.../tong_hop.mp4`.
+
 ## Tạo video hàng loạt 📋
 
 Trên giao diện Web, mở mục **Tạo Hàng Loạt** (phía trên nút **Tạo Video**):
@@ -86,6 +95,8 @@ Trên giao diện Web, mở mục **Tạo Hàng Loạt** (phía trên nút **T�
 4. Kết quả: mỗi video kèm **tiêu đề và hashtag** do AI gợi ý để đăng TikTok / Reels / Shorts, và file
    `storage/tasks/batch-.../ket_qua.csv` (mở bằng Excel) liệt kê đường dẫn video, tiêu đề, hashtag, trạng thái.
    File CSV được ghi lại sau mỗi video, nên nếu bị dừng giữa chừng vẫn giữ được các video đã xong.
+5. Muốn có thêm **1 video tổng hợp** từ cả lô: tick **Ghép các video thành công thành 1 video tổng hợp** và chọn
+   kiểu nối (cắt thẳng hoặc hòa cảnh). File được lưu tại `storage/tasks/batch-.../tong_hop.mp4`.
 
 > Lưu ý: các nền tảng (YouTube, TikTok) không trả tiền cho nội dung sản xuất hàng loạt theo khuôn mẫu, ít giá trị.
 > Hãy kiểm tra lại nội dung, thêm góc nhìn riêng, và gắn nhãn nội dung do AI tạo theo quy định của từng nền tảng.

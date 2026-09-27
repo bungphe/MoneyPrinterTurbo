@@ -17,6 +17,7 @@ from loguru import logger
 from app.models.schema import VideoParams
 from app.services import llm
 from app.services import task as tm
+from app.services import video as vd
 from app.utils import utils
 
 # CSV 表头支持越南语 / 英语 / 中文列名
@@ -135,6 +136,18 @@ def write_results_csv(results: List[BatchResult], output_file: str) -> str:
                 ]
             )
     return output_file
+
+
+def merge_batch_videos(
+    results: List[BatchResult], output_file: str, transition: str = "none"
+) -> str:
+    """把批次中成功生成的视频按顺序合并成一个合集视频，返回合集路径。"""
+    files = [video for r in results if r.status == STATUS_SUCCESS for video in r.videos]
+    files = [f for f in files if os.path.exists(f)]
+    if not files:
+        raise ValueError("no generated videos to merge")
+    logger.info(f"merging {len(files)} batch videos into {output_file}, transition: {transition}")
+    return vd.merge_video_files(files, output_file, transition=transition)
 
 
 def run_batch(

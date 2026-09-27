@@ -154,6 +154,20 @@
     "Script Style Storytelling": "Kể chuyện (tò mò, cao trào, kết thúc ấn tượng)",
     "Script Style Educational": "Chia sẻ kiến thức (sự thật bất ngờ, mẹo cụ thể, tóm tắt)",
     "Script Style Funny": "Hài hước (dí dỏm, kết bằng câu chốt)",
-    "Script Style Motivational": "Truyền cảm hứng (mạnh mẽ, tích cực)"
+    "Script Style Motivational": "Truyền cảm hứng (mạnh mẽ, tích cực)",
+    "Crossfade": "Hòa Cảnh (Crossfade) — hai cảnh tan vào nhau, không qua màn đen",
+    "Merge Batch Videos": "Ghép các video thành công thành 1 video tổng hợp",
+    "Merge Style": "Kiểu nối giữa các video",
+    "Merge Style Cut": "Cắt thẳng (nối liền, không hiệu ứng)",
+    "Merge Style Crossfade": "Hòa cảnh (hình và tiếng tan vào nhau ~1 giây)",
+    "Merge Videos": "**Ghép Video Thành Phẩm** (:blue[Nhấn để mở rộng])",
+    "Merge Videos Help": "Tải lên từ 2 video trở lên (ví dụ các video đã tạo), app sẽ nối chúng **theo thứ tự tên file** (đặt tên `01_...`, `02_...` để sắp xếp) thành 1 video dài, giữ nguyên âm thanh. Video khác khung hình sẽ được thêm viền đen theo khung hình của video đầu tiên.",
+    "Merge Video Files": "Chọn các video cần ghép (theo thứ tự)",
+    "Start Merging Videos": "Bắt Đầu Ghép Video",
+    "Please Upload at Least Two Videos": "Vui lòng tải lên ít nhất 2 video",
+    "Merging Videos": "Đang ghép video...",
+    "Merge Videos Completed": "Đã ghép xong video tổng hợp",
+    "Merge Videos Failed": "Ghép video thất bại",
+    "Merge Order": "**Thứ tự ghép** (theo tên file):"
   }
 }

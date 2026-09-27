@@ -154,6 +154,20 @@
     "Script Style Storytelling": "Storytelling (curiosity, twist, memorable ending)",
     "Script Style Educational": "Educational (surprising fact, practical tips, recap)",
     "Script Style Funny": "Funny (witty, ends with a punchline)",
-    "Script Style Motivational": "Motivational (powerful, uplifting)"
+    "Script Style Motivational": "Motivational (powerful, uplifting)",
+    "Crossfade": "Crossfade (scenes dissolve into each other, no black)",
+    "Merge Batch Videos": "Merge the generated videos into one compilation video",
+    "Merge Style": "Join style",
+    "Merge Style Cut": "Straight cut (no effect)",
+    "Merge Style Crossfade": "Crossfade (picture and sound dissolve ~1s)",
+    "Merge Videos": "**Merge Videos** (:blue[Click to expand])",
+    "Merge Videos Help": "Upload two or more videos (e.g. generated videos); they are joined **in file-name order** (name them `01_...`, `02_...` to control it) into one long video with their audio. Videos with a different aspect ratio are letterboxed to match the first video.",
+    "Merge Video Files": "Videos to merge (in order)",
+    "Start Merging Videos": "Start Merging",
+    "Please Upload at Least Two Videos": "Please upload at least two videos",
+    "Merging Videos": "Merging videos...",
+    "Merge Videos Completed": "Compilation video created",
+    "Merge Videos Failed": "Failed to merge videos",
+    "Merge Order": "**Merge order** (by file name):"
   }
 }

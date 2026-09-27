@@ -118,6 +118,53 @@ class TestFfmpegPipeline(unittest.TestCase):
             self.assertAlmostEqual(clip.duration, duration, delta=0.1)
             clip.close()
 
+    def test_merge_videos_cut_and_crossfade(self):
+        import subprocess
+
+        with_audio = os.path.join(self.tmp_dir, "with_audio.mp4")
+        subprocess.run(
+            [
+                vd.get_ffmpeg_binary(), "-y", "-loglevel", "error",
+                "-f", "lavfi", "-i", "testsrc2=size=1080x1920:rate=30:duration=3",
+                "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
+                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-shortest", with_audio,
+            ],
+            check=True,
+        )
+        # 第二个视频没有音轨、画面比例也不同，合并时应自动补静音和黑边
+        files = [with_audio, self.source_video]
+        for transition, expected in (("none", 6), ("crossfade", 5)):
+            output = os.path.join(self.tmp_dir, f"merged-{transition}.mp4")
+            vd.merge_video_files(files, output, transition=transition)
+            clip = VideoFileClip(output)
+            self.assertAlmostEqual(clip.duration, expected, delta=0.15)
+            self.assertEqual(clip.size, [1080, 1920])
+            self.assertIsNotNone(clip.audio)
+            clip.close()
+
+    def test_combine_videos_crossfade(self):
+        from moviepy import AudioClip
+        from app.models.schema import VideoAspect, VideoConcatMode, VideoTransitionMode
+
+        audio = os.path.join(self.tmp_dir, "voice.mp3")
+        AudioClip(lambda t: 0 * t, duration=4, fps=44100).write_audiofile(audio, logger=None)
+        output = os.path.join(self.tmp_dir, "combined.mp4")
+        vd.combine_videos(
+            output,
+            [self.source_video, self.source_video],
+            audio,
+            video_aspect=VideoAspect.portrait,
+            video_concat_mode=VideoConcatMode.sequential,
+            video_transition_mode=VideoTransitionMode.crossfade,
+            max_clip_duration=2,
+        )
+        clip = VideoFileClip(output)
+        # 溶解会让片段重叠，拼接结果仍需覆盖整段配音
+        self.assertGreaterEqual(clip.duration, 4 - 0.05)
+        self.assertEqual(clip.size, [1080, 1920])
+        clip.close()
+
     def test_generate_video_trims_to_audio(self):
         from moviepy import AudioClip
         from app.models.schema import VideoParams

@@ -154,6 +154,20 @@
     "Script Style Storytelling": "讲故事（悬念、反转、难忘结尾）",
     "Script Style Educational": "知识分享（惊人事实、实用技巧、总结）",
     "Script Style Funny": "幽默（风趣，结尾抖包袱）",
-    "Script Style Motivational": "励志（有力量、积极向上）"
+    "Script Style Motivational": "励志（有力量、积极向上）",
+    "Crossfade": "交叉溶解（两段画面互相溶解，不经过黑屏）",
+    "Merge Batch Videos": "将生成成功的视频合并为一个合集视频",
+    "Merge Style": "衔接方式",
+    "Merge Style Cut": "直接切换（无效果）",
+    "Merge Style Crossfade": "交叉溶解（画面与声音约 1 秒溶解）",
+    "Merge Videos": "**合并成片**（:blue[点击展开]）",
+    "Merge Videos Help": "上传两个或以上视频（例如已生成的视频），将**按文件名顺序**（可命名为 `01_...`、`02_...` 来排序）合并为一个长视频并保留声音。画面比例不同的视频会按第一个视频的尺寸补黑边。",
+    "Merge Video Files": "要合并的视频（按顺序）",
+    "Start Merging Videos": "开始合并",
+    "Please Upload at Least Two Videos": "请至少上传两个视频",
+    "Merging Videos": "正在合并视频...",
+    "Merge Videos Completed": "合集视频已生成",
+    "Merge Videos Failed": "合并视频失败",
+    "Merge Order": "**合并顺序**（按文件名）："
   }
 }
