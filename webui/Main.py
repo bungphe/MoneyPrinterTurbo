@@ -784,6 +784,23 @@ with middle_panel:
             options=[1, 2, 3, 4, 5],
             index=0,
         )
+        # 成片编码速度：越快文件越大或画质略低
+        encode_presets = [
+            (tr("Encode Speed Balanced"), "medium"),
+            (tr("Encode Speed Fast"), "veryfast"),
+            (tr("Encode Speed Fastest"), "ultrafast"),
+        ]
+        saved_encode_preset = config.app.get("video_encode_preset", "medium")
+        encode_preset_values = [v[1] for v in encode_presets]
+        selected_encode_index = st.selectbox(
+            tr("Encode Speed"),
+            options=range(len(encode_presets)),
+            format_func=lambda x: encode_presets[x][0],
+            index=encode_preset_values.index(saved_encode_preset)
+            if saved_encode_preset in encode_preset_values
+            else 0,
+        )
+        config.app["video_encode_preset"] = encode_presets[selected_encode_index][1]
     with st.container(border=True):
         st.write(tr("Audio Settings"))
 

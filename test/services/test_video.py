@@ -165,6 +165,14 @@ class TestFfmpegPipeline(unittest.TestCase):
         self.assertEqual(clip.size, [1080, 1920])
         clip.close()
 
+    def test_encode_preset_setting(self):
+        from unittest import mock
+
+        with mock.patch.dict(vd.config.app, {"video_encode_preset": "veryfast"}):
+            self.assertEqual(vd.get_encode_preset(), "veryfast")
+        with mock.patch.dict(vd.config.app, {"video_encode_preset": "khong-hop-le"}):
+            self.assertEqual(vd.get_encode_preset(), "medium")
+
     def test_generate_video_trims_to_audio(self):
         from moviepy import AudioClip
         from app.models.schema import VideoParams

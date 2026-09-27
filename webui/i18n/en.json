@@ -168,6 +168,10 @@
     "Merging Videos": "Merging videos...",
     "Merge Videos Completed": "Compilation video created",
     "Merge Videos Failed": "Failed to merge videos",
-    "Merge Order": "**Merge order** (by file name):"
+    "Merge Order": "**Merge order** (by file name):",
+    "Encode Speed": "Encoding Speed",
+    "Encode Speed Balanced": "Balanced (default)",
+    "Encode Speed Fast": "Fast (~3x faster, slightly lower quality)",
+    "Encode Speed Fastest": "Fastest (~8x faster, ~2.4x larger file)"
   }
 }

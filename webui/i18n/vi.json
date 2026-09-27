@@ -168,6 +168,10 @@
     "Merging Videos": "Đang ghép video...",
     "Merge Videos Completed": "Đã ghép xong video tổng hợp",
     "Merge Videos Failed": "Ghép video thất bại",
-    "Merge Order": "**Thứ tự ghép** (theo tên file):"
+    "Merge Order": "**Thứ tự ghép** (theo tên file):",
+    "Encode Speed": "Tốc Độ Nén Video",
+    "Encode Speed Balanced": "Cân bằng (mặc định)",
+    "Encode Speed Fast": "Nhanh (nhanh gấp ~3 lần, chất lượng thấp hơn chút)",
+    "Encode Speed Fastest": "Rất nhanh (nhanh gấp ~8 lần, file nặng gấp ~2,4 lần)"
   }
 }

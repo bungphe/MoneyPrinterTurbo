@@ -1,6 +1,11 @@
 [app]
 video_source = "pexels" # "pexels" or "pixabay"
 
+# 成片编码速度 (Final video encoding speed) / Tốc độ nén video
+# "medium": cân bằng (mặc định) | "veryfast": nhanh hơn ~3 lần, chất lượng thấp hơn chút
+# "ultrafast": nhanh hơn ~8 lần, file nặng hơn ~2,4 lần
+video_encode_preset = "medium"
+
 # 是否隐藏配置面板
 hide_config = false
 

@@ -168,6 +168,10 @@
     "Merging Videos": "正在合并视频...",
     "Merge Videos Completed": "合集视频已生成",
     "Merge Videos Failed": "合并视频失败",
-    "Merge Order": "**合并顺序**（按文件名）："
+    "Merge Order": "**合并顺序**（按文件名）：",
+    "Encode Speed": "成片编码速度",
+    "Encode Speed Balanced": "均衡（默认）",
+    "Encode Speed Fast": "快速（约快 3 倍，画质略低）",
+    "Encode Speed Fastest": "极速（约快 8 倍，文件约大 2.4 倍）"
   }
 }

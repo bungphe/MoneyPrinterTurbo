@@ -66,6 +66,16 @@ phụ đề và nhạc nền, rồi ghép lại thành một video ngắn chất
 
 API `/api/v1/scripts` và `/api/v1/videos` nhận thêm trường `video_script_style` (`sales`, `storytelling`, `educational`, `funny`, `motivational`).
 
+## Tốc độ nén video ⚡
+
+Ở mục **Cài Đặt Video → Tốc Độ Nén Video** (hoặc `video_encode_preset` trong `config.toml`). Đo với video 30 giây 1080x1920:
+
+| Lựa chọn | Bước nén bản cuối | Dung lượng | Ghi chú |
+|---|---|---|---|
+| Cân bằng (`medium`, mặc định) | ~40 giây | ~30 MB | |
+| Nhanh (`veryfast`) | ~14 giây | ~26 MB | chất lượng thấp hơn chút, khó nhận ra |
+| Rất nhanh (`ultrafast`) | ~7 giây | ~72 MB | hợp khi tạo nhiều video, hoặc nền tảng sẽ tự nén lại |
+
 ## Chuyển cảnh & ghép video 🎞️
 
 - **Hiệu ứng chuyển cảnh** (mục Cài Đặt Video): chọn **Hòa Cảnh (Crossfade)** để các cảnh quay tan vào nhau

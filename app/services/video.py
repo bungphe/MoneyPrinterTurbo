@@ -23,6 +23,7 @@ from moviepy import (
 from moviepy.video.tools.subtitles import SubtitlesClip
 from PIL import Image, ImageFont
 
+from app.config import config
 from app.models import const
 from app.models.schema import (
     MaterialInfo,
@@ -244,6 +245,14 @@ def get_bgm_file(bgm_type: str = "random", bgm_file: str = ""):
 
 
 TRANSITION_DURATION = 1
+# 成片编码速度（x264 preset）：medium 均衡；veryfast 约快 3 倍、画质略低；ultrafast 约快 8 倍、文件约大 2.4 倍
+ENCODE_PRESETS = ("medium", "veryfast", "ultrafast")
+
+
+def get_encode_preset() -> str:
+    preset = str(config.app.get("video_encode_preset", "medium") or "medium").strip().lower()
+    return preset if preset in ENCODE_PRESETS else "medium"
+
 # 合并视频时单次 ffmpeg 调用最多打开的输入数量，超过则分组合并，避免占用过多内存
 MERGE_MAX_INPUTS = 12
 
@@ -687,7 +696,7 @@ def merge_video_files(
     width, height = width // 2 * 2, height // 2 * 2
 
     final_args = (
-        ["-preset", "medium", "-crf", "23"]
+        ["-preset", get_encode_preset(), "-crf", "23"]
         if final_quality
         else ["-preset", "ultrafast", "-crf", "18"]
     )
@@ -1153,7 +1162,9 @@ def _compose_final_video_with_ffmpeg(
             "-c:v",
             video_codec,
             "-preset",
-            "medium",
+            get_encode_preset(),
+            "-crf",
+            "23",
             "-threads",
             str(threads or 2),
             "-c:a",
@@ -1338,6 +1349,7 @@ def generate_video(
         threads=params.n_threads or 2,
         logger=None,
         fps=fps,
+        preset=get_encode_preset(),
     )
     video_clip.close()
     del video_clip
