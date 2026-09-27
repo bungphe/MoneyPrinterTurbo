@@ -388,29 +388,14 @@ def _merge_group(
                 f"apad,atrim=duration={duration:.3f},asetpts=PTS-STARTPTS[a{i}]"
             )
 
-    if transition == "crossfade" and len(files) > 1:
-        video_label, audio_label, length = "v0", "a0", durations[0]
-        for k in range(1, len(files)):
-            junction = crossfade_junction(durations[k - 1], durations[k])
-            offset = max(length - junction, 0)
-            filters.append(
-                f"[{video_label}][v{k}]xfade=transition=fade:duration={junction:.3f}"
-                f":offset={offset:.3f}[vx{k}]"
-            )
-            video_label = f"vx{k}"
-            if with_audio:
-                filters.append(f"[{audio_label}][a{k}]acrossfade=d={junction:.3f}[ax{k}]")
-                audio_label = f"ax{k}"
-            length = length + durations[k] - junction
-    else:
-        streams = "".join(
-            f"[v{i}][a{i}]" if with_audio else f"[v{i}]" for i in range(len(files))
-        )
-        filters.append(
-            f"{streams}concat=n={len(files)}:v=1:a={1 if with_audio else 0}"
-            + ("[vcat][acat]" if with_audio else "[vcat]")
-        )
-        video_label, audio_label = "vcat", "acat"
+    streams = "".join(
+        f"[v{i}][a{i}]" if with_audio else f"[v{i}]" for i in range(len(files))
+    )
+    filters.append(
+        f"{streams}concat=n={len(files)}:v=1:a={1 if with_audio else 0}"
+        + ("[vcat][acat]" if with_audio else "[vcat]")
+    )
+    video_label, audio_label = "vcat", "acat"
 
     filter_file = f"{output_file}.filter.txt"
     with open(filter_file, "w", encoding="utf-8") as fp:
@@ -430,6 +415,250 @@ def _merge_group(
         delete_files(filter_file)
 
 
+def _probe_stream_signature(file_path: str):
+    """
+    读取视频/音频编码参数，用于判断多个文件能否直接无损拼接（不重新编码）。
+    返回 (视频编码, 像素格式, 宽, 高, 帧率, 音频编码, 采样率, 声道布局)，读取失败返回 None。
+    """
+    result = subprocess.run(
+        [get_ffmpeg_binary(), "-hide_banner", "-i", file_path],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    info = result.stderr or ""
+    video_match = re.search(
+        r"Stream #\S+.*?Video: (\w+).*?, (\w+)(?:\([^)]*\))?, (\d+)x(\d+).*?, ([\d.]+) fps", info
+    )
+    if not video_match:
+        return None
+    audio_match = re.search(r"Stream #\S+.*?Audio: (\w+).*?, (\d+) Hz, ([\w.()]+)", info)
+    audio = audio_match.groups() if audio_match else (None, None, None)
+    return video_match.groups() + audio
+
+
+def _count_video_frames(file_path: str) -> int:
+    """不解码、只复制视频流来统计帧数（很快），用于精确得到画面时长。"""
+    # framecrc 每个视频包输出一行（复制流时不解码），行数即帧数
+    result = subprocess.run(
+        [get_ffmpeg_binary(), "-v", "error", "-i", file_path, "-map", "0:v:0", "-c", "copy", "-f", "framecrc", "-"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    frames = sum(
+        1 for line in (result.stdout or "").splitlines() if line.strip() and not line.startswith("#")
+    )
+    if result.returncode != 0 or frames == 0:
+        raise RuntimeError(f"cannot count frames: {file_path}")
+    return frames
+
+
+def _try_concat_copy(files, probes, output_file, width, height, with_audio) -> bool:
+    """
+    所有输入编码参数完全一致（例如同一批次、同一设置生成的视频）时：
+    - 画面直接复制流拼接：几乎瞬间完成，没有画质损失；
+    - 声音不能直接复制拼接（AAC 每个文件开头有几十毫秒的编码延迟，直接拼接会累积音画不同步），
+      因此解码后按每个文件的画面时长精确截取，再一次性拼接编码。
+    条件不满足或结果异常时返回 False，由调用方改为重新编码。
+    """
+    signatures = [_probe_stream_signature(f) for f in files]
+    first = signatures[0]
+    if first is None or any(sig != first for sig in signatures):
+        return False
+    vcodec, pix_fmt, w, h, frame_rate, acodec, _, _ = first
+    if vcodec != "h264" or pix_fmt != "yuv420p" or (int(w), int(h)) != (width, height):
+        return False
+
+    work_dir = f"{output_file}.{os.urandom(4).hex()}.copy"
+    os.makedirs(work_dir, exist_ok=True)
+    try:
+        list_file = os.path.join(work_dir, "list.txt")
+        with open(list_file, "w", encoding="utf-8") as fp:
+            for file_path in files:
+                fp.write(f"file '{_escape_ffmpeg_concat_path(os.path.abspath(file_path))}'\n")
+        video_file = os.path.join(work_dir, "video.mp4")
+        _run_ffmpeg(
+            [get_ffmpeg_binary(), "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-map", "0:v", "-c", "copy", video_file]
+        )
+        video_durations = [_count_video_frames(f) / float(frame_rate) for f in files]
+        merged_duration = _count_video_frames(video_file) / float(frame_rate)
+        if abs(merged_duration - sum(video_durations)) > 0.1:
+            logger.warning(
+                f"stream copy merge duration mismatch ({merged_duration:.2f}s vs {sum(video_durations):.2f}s), re-encoding"
+            )
+            return False
+
+        if not with_audio:
+            shutil.move(video_file, output_file)
+            return True
+
+        filters = []
+        for i, (duration, (_, has_audio)) in enumerate(zip(video_durations, probes)):
+            source = f"[{i}:a]" if has_audio else "anullsrc=r=44100:cl=stereo,"
+            filters.append(
+                f"{source}aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                f"apad,atrim=duration={duration:.4f},asetpts=PTS-STARTPTS[a{i}]"
+            )
+        filters.append("".join(f"[a{i}]" for i in range(len(files))) + f"concat=n={len(files)}:v=0:a=1[aout]")
+        filter_file = os.path.join(work_dir, "audio_filter.txt")
+        with open(filter_file, "w", encoding="utf-8") as fp:
+            fp.write(";\n".join(filters))
+        audio_file = os.path.join(work_dir, "audio.m4a")
+        command = [get_ffmpeg_binary(), "-y"]
+        for file_path in files:
+            command += ["-i", file_path]
+        command += [
+            "-filter_complex_script", filter_file, "-map", "[aout]", "-vn",
+            "-c:a", audio_codec, "-b:a", audio_bitrate, audio_file,
+        ]
+        _run_ffmpeg(command)
+        _run_ffmpeg(
+            [
+                get_ffmpeg_binary(), "-y", "-i", video_file, "-i", audio_file,
+                "-map", "0:v", "-map", "1:a", "-c", "copy", "-shortest",
+                "-movflags", "+faststart", output_file,
+            ]
+        )
+        return True
+    except Exception as e:
+        logger.warning(f"stream copy merge failed, fallback to re-encoding: {str(e)[-300:]}")
+        return False
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def _merge_crossfade_segmented(
+    files: List[str],
+    probes: list,
+    output_file: str,
+    width: int,
+    height: int,
+    with_audio: bool,
+    encode_args: List[str],
+):
+    """
+    溶解转场合并，内存占用恒定（每次最多同时解码 2 个视频）：
+    1. 在统一的帧网格上计算时间线：每个视频的"主体"部分和相邻视频之间的溶解部分；
+    2. 分别编码主体片段（单输入）和溶解片段（双输入 xfade），参数完全一致；
+    3. 所有视频片段直接复制拼接（不再重新编码）；
+    4. 音频在一次处理中用 acrossfade 连接（音频内存占用很小），最后与画面合并。
+    """
+    durations = [p[0] for p in probes]
+    count = len(files)
+    junctions = [0.0] + [
+        crossfade_junction(durations[k - 1], durations[k]) for k in range(1, count)
+    ] + [0.0]
+    # 每个视频在输出时间线上的起点
+    starts = [0.0]
+    for k in range(1, count):
+        starts.append(starts[k - 1] + durations[k - 1] - junctions[k])
+
+    def frame_at(seconds: float) -> int:
+        return int(round(seconds * fps))
+
+    def normalize(label_in: str, label_out: str, length: float) -> str:
+        return (
+            f"[{label_in}]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={fps},"
+            f"format=yuv420p,tpad=stop_mode=clone:stop_duration=2,"
+            f"trim=duration={length:.4f},setpts=PTS-STARTPTS,fps={fps},settb=AVTB[{label_out}]"
+        )
+
+    work_dir = f"{output_file}.{os.urandom(4).hex()}.parts"
+    os.makedirs(work_dir, exist_ok=True)
+    try:
+        segment_files = []
+        for i in range(count):
+            # 溶解片段：前一个视频的结尾与当前视频的开头
+            if i > 0:
+                t0, t1 = starts[i], starts[i] + junctions[i]
+                frames = frame_at(t1) - frame_at(t0)
+                if frames > 0:
+                    length = frames / fps
+                    segment = os.path.join(work_dir, f"{len(segment_files):04d}.mp4")
+                    _run_ffmpeg(
+                        [
+                            get_ffmpeg_binary(), "-y",
+                            "-ss", f"{max(durations[i - 1] - junctions[i], 0):.4f}", "-i", files[i - 1],
+                            "-i", files[i],
+                            "-filter_complex",
+                            normalize("0:v", "a", length) + ";" + normalize("1:v", "b", length)
+                            + f";[a][b]xfade=transition=fade:duration={length:.4f}:offset=0,format=yuv420p[v]",
+                            "-map", "[v]", "-frames:v", str(frames), "-an", "-c:v", video_codec,
+                        ]
+                        + encode_args
+                        + [segment]
+                    )
+                    segment_files.append(segment)
+            # 主体片段：去掉与前后视频溶解的部分
+            t0 = starts[i] + junctions[i]
+            t1 = starts[i] + durations[i] - junctions[i + 1]
+            frames = frame_at(t1) - frame_at(t0)
+            if frames > 0:
+                length = frames / fps
+                segment = os.path.join(work_dir, f"{len(segment_files):04d}.mp4")
+                _run_ffmpeg(
+                    [
+                        get_ffmpeg_binary(), "-y",
+                        "-ss", f"{junctions[i]:.4f}", "-i", files[i],
+                        "-filter_complex", normalize("0:v", "v", length),
+                        "-map", "[v]", "-frames:v", str(frames), "-an", "-c:v", video_codec,
+                    ]
+                    + encode_args
+                    + [segment]
+                )
+                segment_files.append(segment)
+
+        video_file = os.path.join(work_dir, "video.mp4")
+        list_file = os.path.join(work_dir, "list.txt")
+        with open(list_file, "w", encoding="utf-8") as fp:
+            for segment in segment_files:
+                fp.write(f"file '{_escape_ffmpeg_concat_path(os.path.abspath(segment))}'\n")
+        _run_ffmpeg(
+            [get_ffmpeg_binary(), "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", video_file]
+        )
+
+        if not with_audio:
+            shutil.move(video_file, output_file)
+            return output_file
+
+        filters = []
+        for i, (duration, has_audio) in enumerate(probes):
+            source = f"[{i}:a]" if has_audio else "anullsrc=r=44100:cl=stereo,"
+            filters.append(
+                f"{source}aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                f"apad,atrim=duration={duration:.4f},asetpts=PTS-STARTPTS[a{i}]"
+            )
+        label = "a0"
+        for k in range(1, count):
+            filters.append(f"[{label}][a{k}]acrossfade=d={junctions[k]:.4f}[ax{k}]")
+            label = f"ax{k}"
+        filter_file = os.path.join(work_dir, "audio_filter.txt")
+        with open(filter_file, "w", encoding="utf-8") as fp:
+            fp.write(";\n".join(filters))
+        audio_file = os.path.join(work_dir, "audio.m4a")
+        command = [get_ffmpeg_binary(), "-y"]
+        for file_path in files:
+            command += ["-i", file_path]
+        command += [
+            "-filter_complex_script", filter_file, "-map", f"[{label}]", "-vn",
+            "-c:a", audio_codec, "-b:a", audio_bitrate, audio_file,
+        ]
+        _run_ffmpeg(command)
+
+        _run_ffmpeg(
+            [
+                get_ffmpeg_binary(), "-y", "-i", video_file, "-i", audio_file,
+                "-map", "0:v", "-map", "1:a", "-c", "copy", "-shortest",
+                "-movflags", "+faststart", output_file,
+            ]
+        )
+        return output_file
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
 def merge_video_files(
     files: List[str],
     output_file: str,
@@ -439,6 +668,7 @@ def merge_video_files(
     with_audio: bool = True,
     threads: int = 2,
     final_quality: bool = True,
+    allow_copy: bool = True,
 ) -> str:
     """
     把多个视频首尾相接合并为一个视频。
@@ -462,6 +692,18 @@ def merge_video_files(
         else ["-preset", "ultrafast", "-crf", "18"]
     )
     final_args += ["-threads", str(threads or 2)]
+
+    if transition == "crossfade" and len(files) > 1:
+        return _merge_crossfade_segmented(
+            files, probes, output_file, width, height, with_audio, final_args
+        )
+
+    # 直接切换：编码参数一致时无损复制拼接，否则重新编码
+    if allow_copy and len(files) > 1 and _try_concat_copy(
+        files, probes, output_file, width, height, with_audio
+    ):
+        logger.info(f"merged {len(files)} videos by stream copy (no re-encoding)")
+        return output_file
 
     if len(files) <= MERGE_MAX_INPUTS:
         _merge_group(
@@ -507,6 +749,8 @@ def merge_video_files(
             with_audio=with_audio,
             threads=threads,
             final_quality=final_quality,
+            # 中间文件是快速编码的，最终结果必须按要求的质量重新编码
+            allow_copy=not final_quality,
         )
     finally:
         delete_files(group_files)
